@@ -1,4 +1,5 @@
 # CIVIL-OS — Phase 1 Working Prototype
+ This project is indented to be the backbone for a system that helps civil engineers and construction firms use AI models for their projects. It's a new kind of Harness for the power of AI models. It is meant to connect to AI models in a strategic way that puts the Civil Engineer in full control. 
 **Project Context Engine** — core schemas · ECP assembler · basic CPO
 
 
