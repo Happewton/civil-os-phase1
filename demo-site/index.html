@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CIVIL-OS — Engineering Context Engine (live demo)</title>
+<meta name="description" content="Interactive demo of CIVIL-OS: ECP assembly, content-hash versioning, the A–E confidence system and the §7.3 confidence gate with waivers." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #fafafa;
+    --surface: #ffffff;
+    --surface-2: #f5f6f8;
+    --line: #e4e7ec;
+    --line-soft: #eef0f3;
+    --text: #14171e;
+    --muted: #6b7280;
+    --muted-2: #9aa1ab;
+    --primary: #3b82f6;
+    --primary-soft: rgba(59, 130, 246, 0.08);
+    --ok: #10b981;
+    --warn: #f59e0b;
+    --bad: #f43f5e;
+    /* Confidence scale A→E (good→unverified) */
+    --A: #10b981; --B: #3b82f6; --C: #f59e0b; --D: #f59e0b; --E: #f43f5e;
+    --r: 14px;
+    --shadow: 0 1px 2px rgba(16,24,40,.05), 0 4px 16px -4px rgba(16,24,40,.07);
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: 'Outfit', ui-sans-serif, sans-serif;
+    font-size: 15px; line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 96px; }
+
+  /* ---------- header ---------- */
+  header { border-bottom: 1px solid var(--line); background: rgba(250,250,250,.86);
+           backdrop-filter: blur(8px); position: sticky; top: 0; z-index: 20; }
+  .head { max-width: 1080px; margin: 0 auto; padding: 14px 20px;
+          display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .logo { display: flex; align-items: center; gap: 9px; font-weight: 600; letter-spacing: -.01em; }
+  .logo-mark { width: 26px; height: 26px; color: var(--primary); flex: none; }
+  .head .sep { width: 1px; height: 20px; background: var(--line); }
+  .head .meta { color: var(--muted); font-size: 13px; }
+  .head .grow { flex: 1; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px;
+    border-radius: 9px; border: 1px solid var(--line); background: var(--surface);
+    color: var(--text); font: inherit; font-size: 14px; font-weight: 500;
+    cursor: pointer; transition: all .18s ease; white-space: nowrap;
+  }
+  .btn:hover:not(:disabled) { border-color: var(--muted-2); transform: translateY(-1px); box-shadow: var(--shadow); }
+  .btn:active:not(:disabled) { transform: translateY(0); }
+  .btn:disabled { opacity: .42; cursor: not-allowed; }
+  .btn-primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .btn-primary:hover:not(:disabled) { filter: brightness(1.06); }
+  .btn-sm { padding: 5px 10px; font-size: 13px; border-radius: 7px; }
+  .btn svg { width: 15px; height: 15px; flex: none; }
+
+  /* ---------- hero ---------- */
+  .hero { padding: 52px 0 36px; }
+  .hero h1 { font-size: clamp(28px, 5vw, 40px); line-height: 1.1; letter-spacing: -.025em;
+             font-weight: 600; margin: 0 0 14px; max-width: 17ch; }
+  .hero p { color: var(--muted); font-size: 16px; max-width: 62ch; margin: 0 0 8px; }
+  .chain { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 26px; }
+  .chain-node { display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px;
+                border: 1px solid var(--line); border-radius: 99px; background: var(--surface);
+                font-size: 13px; font-weight: 500; }
+  .chain-node.on { border-color: var(--primary); background: var(--primary-soft); color: var(--primary); }
+  .chain-node.done { border-color: var(--ok); color: var(--ok); background: rgba(16,185,129,.07); }
+  .chain-arrow { color: var(--muted-2); }
+
+  /* ---------- layout ---------- */
+  .cols { display: grid; grid-template-columns: 380px 1fr; gap: 20px; align-items: start; }
+  @media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
+  .side { position: sticky; top: 76px; display: flex; flex-direction: column; gap: 14px; }
+  @media (max-width: 900px) { .side { position: static; } }
+
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r);
+          box-shadow: var(--shadow); }
+  .card-h { display: flex; align-items: center; gap: 9px; padding: 14px 16px 0; }
+  .card-h h2 { font-size: 13px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+               color: var(--muted); margin: 0; flex: 1; }
+  .card-h .step { width: 20px; height: 20px; border-radius: 6px; background: var(--primary-soft);
+                  color: var(--primary); font-size: 11px; font-weight: 700; display: grid;
+                  place-items: center; flex: none; }
+  .card-h svg { width: 15px; height: 15px; color: var(--muted-2); flex: none; }
+  .card-b { padding: 14px 16px 16px; }
+  .stack { display: flex; flex-direction: column; gap: 14px; }
+
+  label { display: block; font-size: 12px; font-weight: 500; color: var(--muted); margin-bottom: 5px; }
+  input, select, textarea {
+    width: 100%; padding: 8px 11px; font: inherit; font-size: 14px; color: var(--text);
+    background: var(--surface); border: 1px solid var(--line); border-radius: 9px;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: none; border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-soft);
+  }
+  .f { margin-bottom: 11px; }
+  .f:last-child { margin-bottom: 0; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  @media (max-width: 460px) { .row3 { grid-template-columns: 1fr 1fr; } }
+  .hint { font-size: 12px; color: var(--muted-2); margin-top: 4px; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 13px; }
+
+  /* ---------- confidence chart ---------- */
+  .stackbar { display: flex; height: 26px; border-radius: 7px; overflow: hidden;
+              background: var(--surface-2); border: 1px solid var(--line); }
+  .stackbar div { transition: flex-grow .4s ease; }
+  .lvl-rows { margin-top: 12px; }
+  .lvl-row { display: grid; grid-template-columns: 62px 1fr 34px; gap: 10px;
+             align-items: center; padding: 3px 0; font-size: 13px; }
+  .lvl-tag { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+  .lvl-dot { width: 8px; height: 8px; border-radius: 2px; flex: none; }
+  .lvl-track { height: 7px; background: var(--surface-2); border-radius: 4px; overflow: hidden; }
+  .lvl-fill { height: 100%; border-radius: 4px; transition: width .4s ease; }
+  .lvl-n { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .verdict { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+             margin-top: 14px; padding-top: 13px; border-top: 1px solid var(--line-soft); }
+  .verdict .big { font-size: 26px; font-weight: 600; letter-spacing: -.02em; }
+
+  /* ---------- chips / pills ---------- */
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px;
+          border: 1px solid var(--line); border-radius: 6px; background: var(--surface-2);
+          font-size: 12px; color: var(--muted); }
+  .pill { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 99px;
+          font-size: 11.5px; font-weight: 600; letter-spacing: .02em; border: 1px solid; }
+  .pill.ready { color: var(--muted); border-color: var(--line); background: var(--surface-2); }
+  .pill.in_progress { color: var(--primary); border-color: var(--primary); background: var(--primary-soft); }
+  .pill.under_review { color: var(--warn); border-color: var(--warn); background: rgba(245,158,11,.08); }
+  .pill.approved, .pill.completed { color: var(--ok); border-color: var(--ok); background: rgba(16,185,129,.08); }
+  .pill.blocked { color: var(--bad); border-color: var(--bad); background: rgba(244,63,94,.08); }
+  .pill .dot { width: 5px; height: 5px; border-radius: 99px; background: currentColor; }
+
+  /* ---------- gate ---------- */
+  .gate { border-radius: 11px; padding: 13px 14px; border: 1px solid; }
+  .gate.open { background: rgba(16,185,129,.06); border-color: rgba(16,185,129,.3); }
+  .gate.shut { background: rgba(244,63,94,.055); border-color: rgba(244,63,94,.3); }
+  .gate-h { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; }
+  .gate.open .gate-h { color: var(--ok); } .gate.shut .gate-h { color: var(--bad); }
+  .gate-h svg { width: 16px; height: 16px; flex: none; }
+  .gate p { margin: 7px 0 0; font-size: 13px; color: var(--muted); }
+  .gate ul { margin: 9px 0 0; padding-left: 17px; font-size: 13px; color: var(--text); }
+  .gate li { margin-bottom: 4px; }
+  .gate li::marker { color: var(--bad); }
+
+  /* ---------- timeline ---------- */
+  .timeline { list-style: none; margin: 0; padding: 0; position: relative; }
+  .timeline::before { content: ""; position: absolute; left: 6px; top: 8px; bottom: 10px;
+                      width: 2px; background: var(--line); }
+  .timeline li { position: relative; padding: 0 0 14px 26px; font-size: 13px; }
+  .timeline li:last-child { padding-bottom: 0; }
+  .timeline li::before { content: ""; position: absolute; left: 1px; top: 5px; width: 12px;
+                         height: 12px; border-radius: 99px; background: var(--surface);
+                         border: 2px solid var(--muted-2); }
+  .timeline li.evt-blocked::before { border-color: var(--bad); }
+  .timeline li.evt-unblocked::before, .timeline li.evt-complete_task::before,
+  .timeline li.evt-approve_task::before { border-color: var(--ok); }
+  .timeline li.evt-waiver_applied::before { border-color: var(--warn); }
+  .timeline .ev { font-weight: 600; }
+  .timeline .ac { color: var(--muted); }
+  .timeline .ts { color: var(--muted-2); font-size: 11.5px; }
+
+  /* ---------- table ---------- */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+       color: var(--muted-2); font-weight: 600; padding: 0 10px 7px 0; }
+  td { padding: 7px 10px 7px 0; border-top: 1px solid var(--line-soft); vertical-align: top; }
+  tr:last-child td { border-top-color: transparent; }
+
+  .kv { display: grid; grid-template-columns: 116px 1fr; gap: 7px 14px; margin: 0; font-size: 13px; }
+  .kv dt { color: var(--muted); }
+  .kv dd { margin: 0; }
+
+  .empty { color: var(--muted-2); font-size: 13.5px; text-align: center; padding: 26px 8px; }
+  .empty svg { width: 22px; height: 22px; opacity: .5; display: block; margin: 0 auto 9px; }
+  .note { font-size: 12.5px; color: var(--muted); background: var(--surface-2);
+          border: 1px solid var(--line-soft); border-radius: 9px; padding: 10px 12px; }
+  .hash { word-break: break-all; font-size: 11.5px; color: var(--muted); }
+  .fade { animation: fade .28s ease; }
+  @keyframes fade { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+
+  /* ---------- toast ---------- */
+  #toasts { position: fixed; right: 16px; bottom: 16px; z-index: 60; display: flex;
+            flex-direction: column; gap: 8px; max-width: min(400px, calc(100vw - 32px)); }
+  .toast { display: flex; gap: 9px; align-items: flex-start; padding: 10px 13px;
+           background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+           box-shadow: 0 8px 28px -6px rgba(16,24,40,.22); font-size: 13.5px;
+           animation: fade .2s ease; }
+  .toast svg { width: 15px; height: 15px; flex: none; margin-top: 2px; }
+  .toast.ok svg { color: var(--ok); } .toast.err svg { color: var(--bad); }
+
+  footer { border-top: 1px solid var(--line); margin-top: 56px; padding-top: 22px;
+           color: var(--muted); font-size: 13px; }
+  footer a { color: var(--primary); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<header>
+  <div class="head">
+    <div class="logo">
+      <svg class="logo-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 20h18"/><path d="M5 20V10l7-6 7 6v10"/><path d="M9 20v-5h6v5"/>
+      </svg>
+      <span>CIVIL-OS</span>
+    </div>
+    <div class="sep"></div>
+    <span class="meta">Engineering Context Engine — live demo</span>
+    <span class="grow"></span>
+    <button class="btn btn-sm" id="btn-example">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
+      Load example
+    </button>
+    <button class="btn btn-sm" id="btn-reset">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+      Reset
+    </button>
+  </div>
+</header>
+
+<div class="wrap">
+  <section class="hero">
+    <h1>Stop design work resting on unverified assumptions.</h1>
+    <p>
+      CIVIL-OS gives every engineering input a provenance and a confidence level
+      (A&nbsp;measured → E&nbsp;unverified), assembles that evidence into a versioned
+      Engineering Context Packet, and refuses to start a task that depends on a
+      level&nbsp;E assumption — unless a named engineer signs a waiver.
+    </p>
+    <p style="font-size:14px">
+      Safety-critical work is different: a waiver is never accepted, no matter who signs it.
+    </p>
+    <div class="chain" id="chain"></div>
+  </section>
+
+  <div class="cols">
+    <aside class="side">
+      <!-- 1. PROJECT + SITE -->
+      <div class="card">
+        <div class="card-h">
+          <span class="step">1</span><h2>Project &amp; site evidence</h2>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+        </div>
+        <div class="card-b">
+          <div class="f"><label for="p-name">Project name</label>
+            <input id="p-name" value="Al-Wadi Flood Protection" /></div>
+          <div class="f row2">
+            <div><label for="p-country">Country (ISO-2)</label><input id="p-country" value="SA" maxlength="2" /></div>
+            <div><label for="p-type">Type</label><select id="p-type">
+              <option>water</option><option>water_supply</option><option>wastewater</option>
+              <option>transportation</option><option>structural</option><option>building</option>
+              <option>urban</option><option>environmental</option><option>energy</option></select></div>
+          </div>
+          <div class="f row2">
+            <div><label for="p-lat">Latitude</label><input id="p-lat" type="number" step="any" value="24.7136" /></div>
+            <div><label for="p-lon">Longitude</label><input id="p-lon" type="number" step="any" value="46.6753" /></div>
+          </div>
+          <div class="f"><label for="p-region">Region / municipality</label>
+            <input id="p-region" value="Riyadh Province / Al-Wadi" /></div>
+
+          <label style="margin-top:14px">Soil layers — each carries a confidence level</label>
+          <div id="layers" class="stack" style="gap:8px"></div>
+          <button class="btn btn-sm" id="btn-add-layer" style="margin-top:8px">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            Add layer
+          </button>
+          <div class="f" style="margin-top:12px"><label for="p-gap">Data gaps (one per line)</label>
+            <textarea id="p-gap" rows="2">Flood inundation modelling for the 100-year event</textarea></div>
+          <div class="actions">
+            <button class="btn btn-primary" id="btn-register">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16"/><path d="M3 21h18M9 7h2M9 11h2M9 15h2"/></svg>
+              Register project &amp; site
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. NEW TASK -->
+      <div class="card">
+        <div class="card-h">
+          <span class="step">3</span><h2>New task</h2>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        </div>
+        <div class="card-b">
+          <div class="f"><label for="t-name">Task name</label>
+            <input id="t-name" value="Hydraulic analysis of proposed barrier" /></div>
+          <div class="f row2">
+            <div><label for="t-disc">Discipline</label><input id="t-disc" value="civil" /></div>
+            <div><label for="t-safety">Safety-critical</label><select id="t-safety">
+              <option value="false">No — waivable</option><option value="true">Yes — never waivable</option></select></div>
+          </div>
+          <div class="f"><label for="t-assume">Level-E assumption (optional)</label>
+            <input id="t-assume" value="Groundwater level is 5.2 m below surface" />
+            <div class="hint">Leave empty for a task with no unverified assumptions.</div></div>
+          <div class="actions">
+            <button class="btn btn-primary" id="btn-task">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+              Create task
+            </button>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="stack" style="gap:20px">
+      <!-- 2. ECP -->
+      <div class="card">
+        <div class="card-h">
+          <span class="step">2</span><h2>Engineering Context Packet</h2>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg>
+        </div>
+        <div class="card-b" id="ecp-panel">
+          <div class="empty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg>
+            Register a project to assemble its context packet.
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. TASKS -->
+      <div class="card">
+        <div class="card-h">
+          <span class="step">4</span><h2>Tasks, confidence gate &amp; lifecycle</h2>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M3 12h18M3 18h12"/></svg>
+        </div>
+        <div class="card-b" id="tasks-panel">
+          <div class="empty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>
+            No tasks yet.
+          </div>
+        </div>
+      </div>
+
+      <!-- AUDIT -->
+      <div class="card">
+        <div class="card-h">
+          <h2>Audit trail</h2>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+        </div>
+        <div class="card-b" id="audit-panel">
+          <div class="empty">Nothing recorded yet.</div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <footer>
+    <p>
+      This page is a faithful JavaScript port of the CIVIL-OS Phase&nbsp;1 engine
+      (<code class="mono">civil_os/</code>) — same ECP assembly rules, same
+      content-hash versioning, same §7.3 gate. It runs entirely in your browser with no
+      backend, so state is not shared or persisted.
+    </p>
+    <p>
+      The real package — Pydantic schemas, pytest suite, FastAPI service and MCP server —
+      is at
+      <a href="https://github.com/Happewton/civil-os-phase1" target="_blank" rel="noopener">github.com/Happewton/civil-os-phase1</a>.
+      Run <code class="mono">python demo.py</code> or <code class="mono">uvicorn app.api:app</code> there.
+    </p>
+  </footer>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+"use strict";
+/* =====================================================================
+   CIVIL-OS Phase 1 engine — browser port of civil_os/
+   Mirrors: schemas/, engine/{assembler,evidence,gates,jurisdiction,
+   validator,versioning}.py and cpo/{orchestrator,registry,state_machine}.py
+   ===================================================================== */
+
+/* ---------- SHA-256 (sync, so assembly stays synchronous everywhere) ---------- */
+const SHA256_K = [
+  0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+  0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+  0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+  0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+  0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+  0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+  0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+  0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+
+function sha256(message) {
+  const bytes = new TextEncoder().encode(message);
+  const bitLen = bytes.length * 8;
+  const withPad = new Uint8Array((((bytes.length + 8) >> 6) + 1) * 64);
+  withPad.set(bytes);
+  withPad[bytes.length] = 0x80;
+  const dv = new DataView(withPad.buffer);
+  dv.setUint32(withPad.length - 4, bitLen >>> 0, false);
+  dv.setUint32(withPad.length - 8, Math.floor(bitLen / 4294967296), false);
+
+  let h0=0x6a09e667,h1=0xbb67ae85,h2=0x3c6ef372,h3=0xa54ff53a,
+      h4=0x510e527f,h5=0x9b05688c,h6=0x1f83d9ab,h7=0x5be0cd19;
+  const w = new Uint32Array(64);
+  const rotr = (x,n) => (x >>> n) | (x << (32 - n));
+
+  for (let off = 0; off < withPad.length; off += 64) {
+    for (let i = 0; i < 16; i++) w[i] = dv.getUint32(off + i * 4, false);
+    for (let i = 16; i < 64; i++) {
+      const s0 = rotr(w[i-15],7) ^ rotr(w[i-15],18) ^ (w[i-15] >>> 3);
+      const s1 = rotr(w[i-2],17) ^ rotr(w[i-2],19) ^ (w[i-2] >>> 10);
+      w[i] = (w[i-16] + s0 + w[i-7] + s1) >>> 0;
+    }
+    let a=h0,b=h1,c=h2,d=h3,e=h4,f=h5,g=h6,h=h7;
+    for (let i = 0; i < 64; i++) {
+      const S1 = rotr(e,6) ^ rotr(e,11) ^ rotr(e,25);
+      const ch = (e & f) ^ (~e & g);
+      const t1 = (h + S1 + ch + SHA256_K[i] + w[i]) >>> 0;
+      const S0 = rotr(a,2) ^ rotr(a,13) ^ rotr(a,22);
+      const maj = (a & b) ^ (a & c) ^ (b & c);
+      const t2 = (S0 + maj) >>> 0;
+      h=g; g=f; f=e; e=(d+t1)>>>0; d=c; c=b; b=a; a=(t1+t2)>>>0;
+    }
+    h0=(h0+a)>>>0; h1=(h1+b)>>>0; h2=(h2+c)>>>0; h3=(h3+d)>>>0;
+    h4=(h4+e)>>>0; h5=(h5+f)>>>0; h6=(h6+g)>>>0; h7=(h7+h)>>>0;
+  }
+  return [h0,h1,h2,h3,h4,h5,h6,h7].map(x => x.toString(16).padStart(8,"0")).join("");
+}
+
+/* Canonical JSON: keys sorted, compact — matches versioning.py */
+function canonicalJson(value) {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return "[" + value.map(canonicalJson).join(",") + "]";
+  const keys = Object.keys(value).filter(k => value[k] !== undefined).sort();
+  return "{" + keys.map(k => JSON.stringify(k) + ":" + canonicalJson(value[k])).join(",") + "}";
+}
+
+const deepCopy = o => JSON.parse(JSON.stringify(o));
+let idCounter = 0;
+const newId = () => "id-" + (Date.now().toString(36)) + "-" + (++idCounter).toString(36);
+
+/* ---------- §7.1 confidence ---------- */
+const LEVELS = ["A","B","C","D","E"];
+const LEVEL_MEANING = {
+  A: "Measured on this project",
+  B: "Authoritative external source",
+  C: "Interpolated / modelled",
+  D: "Engineering correlation",
+  E: "Unverified assumption"
+};
+const LEVEL_SCORE = { A: 5, B: 4, C: 3, D: 2, E: 1 };
+
+/* ---------- §5.3 r.5 jurisdiction cascade ---------- */
+const CODES_REGISTRY = {
+  SA: { country: "Saudi Arabia", codes: ["SBC 401 — Structural Design", "SBC 402 — Geotechnics", "SBC 801 — Drainage"] },
+  US: { country: "United States", codes: ["IBC — International Building Code", "ACI 318 — Concrete", "AASHTO — Roads & Bridges"] },
+  GB: { country: "United Kingdom", codes: ["BS 8103 — Foundations", "BS 6399 — Loading", "BS EN 1997 — Geotechnical"] },
+  DE: { country: "Germany", codes: ["DIN 1054 — Geotechnics", "DIN 1055 — Loading", "EC2 — Eurocodes"] },
+  FR: { country: "France", codes: ["Eurocode 7 — Geotechnical", "BAEL — Reinforced concrete"] },
+  AE: { country: "United Arab Emirates", codes: ["UAE Building Code", "Dubai Municipality Building Code"] },
+  IN: { country: "India", codes: ["IS 1893 — Seismic", "IS 456 — Concrete", "IRC — Roads"] },
+  INT:{ country: "International", codes: ["ISO 2394 — Reliability", "EN Eurocodes"] }
+};
+function resolveJurisdiction(country, region, municipality) {
+  let code = (country || "").toUpperCase();
+  if (!CODES_REGISTRY[code]) code = "INT";
+  const entry = CODES_REGISTRY[code];
+  return {
+    code,
+    countryName: entry.country,
+    jurisdiction: municipality || region || entry.country,
+    codes: entry.codes
+  };
+}
+
+/* ---------- §5.3 r.3 evidence accounting ---------- */
+/* confidence_summary is deliberately excluded: it is this pass's output. */
+const ECP_EVIDENCE_SECTIONS = [
+  "project_identity","project_need","stakeholder_requirements","location","site_data",
+  "budget","schedule","land","applicable_codes","constraints","design_life","climate","outputs"
+];
+const LEVEL_FIELDS = ["confidence_level","evidence_level_required","confidence_minimum_required"];
+
+function countByLevel(ecp) {
+  const counts = { A:0, B:0, C:0, D:0, E:0 };
+  const seen = new Set();
+  (function walk(node) {
+    if (node === null || node === undefined) return;
+    if (typeof node !== "object") return;
+    if (seen.has(node)) return;
+    seen.add(node);
+    if (Array.isArray(node)) { node.forEach(walk); return; }
+    for (const f of LEVEL_FIELDS) {
+      const v = node[f];
+      if (typeof v === "string" && LEVELS.includes(v.toUpperCase())) {
+        counts[v.toUpperCase()]++; break;
+      }
+    }
+    Object.values(node).forEach(walk);
+  })(ecp);
+  return counts;
+}
+
+function summarise(ecp) {
+  const counts = countByLevel(ecp);
+  const total = LEVELS.reduce((s,l) => s + counts[l], 0);
+  let average = "E";
+  if (total > 0) {
+    const weighted = LEVELS.reduce((s,l) => s + LEVEL_SCORE[l] * counts[l], 0) / total;
+    average = LEVELS.reduce((best,l) =>
+      Math.abs(LEVEL_SCORE[l] - weighted) < Math.abs(LEVEL_SCORE[best] - weighted) ? l : best, "A");
+  }
+  const items = [];
+  if (counts.E > 0) {
+    items.push({ parameter: "unverified_assumptions",
+      description: counts.E + " parameter(s) rest on unverified level-E evidence",
+      impact: "high", recommended_action: "Commission the site investigation listed in data gaps" });
+  }
+  (ecp.site_data?.data_gaps || []).forEach(g => items.push({
+    parameter: g, description: "Open site data gap", impact: "medium",
+    recommended_action: "Close before detailed design" }));
+  return { counts, total, average, uncertainty_items: items };
+}
+
+/* ---------- §5.3 r.4 content-hash versioning ----------
+   Excludes wall-clock fields; identical content ⇒ identical version. */
+const NON_CONTENT_FIELDS = ["ecp_id","created_at","version","content_hash","validity"];
+
+function computeHash(ecp) {
+  const content = {};
+  Object.keys(ecp).forEach(k => { if (!NON_CONTENT_FIELDS.includes(k)) content[k] = ecp[k]; });
+  return sha256(canonicalJson(content));
+}
+
+class ECPVersionManager {
+  constructor() { this._versions = {}; }               // per-orchestrator, never global
+  register(ecp, projectId, taskId) {
+    const hash = computeHash(ecp);
+    const key = projectId + "::" + taskId;
+    const existing = this._versions[key];
+    let version;
+    if (!existing) version = 1;
+    else if (existing.hash === hash) version = existing.version;
+    else version = existing.version + 1;
+    this._versions[key] = { version, hash };
+    ecp.version = version;
+    ecp.content_hash = hash;
+    return version;
+  }
+}
+
+/* ---------- §5.3 r.1/r.2 validation ---------- */
+const AssemblyError = class extends Error { constructor(m){ super(m); this.name="AssemblyError"; } };
+const ValidationError = class extends Error { constructor(m){ super(m); this.name="ValidationError"; } };
+const StateMachineError = class extends Error { constructor(m){ super(m); this.name="StateMachineError"; } };
+const GateBlocked = class extends StateMachineError {
+  constructor(m, issues){ super(m); this.name="GateBlocked"; this.issues = issues || []; }
+};
+
+function checkCompleteness(ecp) {
+  const required = ["project_identity","project_need","location","site_data"];
+  const missing = required.filter(s => ecp[s] === null || ecp[s] === undefined);
+  return { isComplete: missing.length === 0, missing };
+}
+function checkFreshness(ecp) {
+  if (ecp.validity && Date.parse(ecp.validity.valid_until) < Date.now()) {
+    throw new ValidationError("ECP " + ecp.ecp_id + " validity expired at " + ecp.validity.valid_until);
+  }
+  return true;
+}
+
+/* ---------- §5.3 assembler ---------- */
+function assembleECP(project, site, need, validityDays, vm) {
+  if (!project.location) throw new AssemblyError("Project location is mandatory for ECP assembly (§5.3 r.5)");
+
+  const now = new Date().toISOString();
+  const soilLayers = [];
+  ((site && site.soil_profiles) || []).forEach(p =>
+    (p.layers || []).forEach(l => soilLayers.push({
+      profile_id: p.profile_id, borehole_id: p.borehole_id,
+      depth_from_m: l.depth_from_m, depth_to_m: l.depth_to_m,
+      soil_type: l.soil_type, classification: l.classification,
+      confidence_level: l.confidence_level
+    })));
+
+  const j = resolveJurisdiction(project.location.country, project.location.region, project.location.municipality);
+
+  const ecp = {
+    ecp_id: newId(),
+    project_id: project.project_id,
+    version: 1,
+    content_hash: "",
+    created_at: now,
+    validity: { valid_from: now,
+      valid_until: new Date(Date.now() + validityDays * 864e5).toISOString(),
+      rationale: "Assembly validity window: " + validityDays + " days" },
+    project_identity: {
+      project_id: project.project_id, name: project.name, description: project.description,
+      project_type: project.project_type, design_life_years: project.design_life_years,
+      current_phase: project.current_phase, created_at: project.created_at
+    },
+    project_need: {
+      need_id: need ? need.need_id : "unknown",
+      category: need ? need.category : "infrastructure",
+      problem_statement: need ? need.problem_statement : "Not specified",
+      affected_population: need ? need.affected_population.count : 0,
+      performance_targets: []
+    },
+    stakeholder_requirements: [],
+    location: { ...project.location },
+    site_data: {
+      soil_layers: soilLayers,
+      hydrology_summary: (site && site.hydrology) || {},
+      hazards_summary: (site && site.hazards) || [],
+      existing_assets: [],
+      data_gaps: (site && site.data_gaps) || []
+    },
+    budget: project.budget_amount != null
+      ? { total_budget: project.budget_amount, currency: project.budget_currency } : null,
+    schedule: null,
+    land: null,
+    applicable_codes: j.codes.map(c => ({
+      jurisdiction: j.jurisdiction, code_name: c, applicability: "standard" })),
+    constraints: { constraints: [], risk_tolerance: project.risk_tolerance },
+    design_life: { design_life_years: project.design_life_years },
+    climate: null,
+    confidence_summary: { level_a_count:0, level_b_count:0, level_c_count:0, level_d_count:0,
+                          level_e_count:0, average_confidence:"C", uncertainty_items: [] },
+    outputs: [],
+    assembled_by: "ECPAssembler (browser)"
+  };
+
+  /* r.3 — populate the confidence summary from real evidence */
+  const s = summarise(ecp);
+  ecp.confidence_summary = {
+    level_a_count: s.counts.A, level_b_count: s.counts.B, level_c_count: s.counts.C,
+    level_d_count: s.counts.D, level_e_count: s.counts.E,
+    average_confidence: s.average, uncertainty_items: s.uncertainty_items
+  };
+
+  /* r.1 */
+  const c = checkCompleteness(ecp);
+  if (!c.isComplete) throw new AssemblyError("ECP assembly: missing sections " + c.missing.join(", "));
+  /* r.2 */
+  checkFreshness(ecp);
+  /* r.4 */
+  vm.register(ecp, project.project_id, "uto_0");
+  return ecp;
+}
+
+/* ---------- §6.3 state machine ---------- */
+const TaskStatus = { READY:"ready", IN_PROGRESS:"in_progress", UNDER_REVIEW:"under_review",
+                     APPROVED:"approved", COMPLETED:"completed", BLOCKED:"blocked" };
+
+function logEvent(uto, eventType, actor, description, details) {
+  uto.execution_log.push({
+    timestamp: new Date().toISOString(), event_type: eventType,
+    actor: actor || "system", description: description || "", details: details || {}
+  });
+}
+
+const SM = {
+  startTask(uto, actor) {
+    if (![TaskStatus.READY, TaskStatus.BLOCKED].includes(uto.status)) {
+      throw new StateMachineError("Cannot start task in state " + uto.status + "; expected READY or BLOCKED");
+    }
+    const wasBlocked = uto.status === TaskStatus.BLOCKED;
+    logEvent(uto, "start_task", actor,
+      wasBlocked ? "Task started (released from blocked)" : "Task started");
+    uto.status = TaskStatus.IN_PROGRESS;
+  },
+  markUnderReview(uto, actor) {
+    if (uto.status !== TaskStatus.IN_PROGRESS) {
+      throw new StateMachineError("Cannot mark under review from state " + uto.status + "; expected IN_PROGRESS");
+    }
+    if (uto.requires_review) {
+      uto.status = TaskStatus.UNDER_REVIEW;
+      logEvent(uto, "mark_under_review", actor, "Task marked for review");
+    } else {
+      uto.status = TaskStatus.APPROVED;
+      logEvent(uto, "auto_approve", actor, "Task approved (no review required)");
+    }
+  },
+  approveTask(uto, actor) {
+    if (uto.status !== TaskStatus.UNDER_REVIEW) {
+      throw new StateMachineError("Cannot approve from state " + uto.status + "; expected UNDER_REVIEW");
+    }
+    uto.status = TaskStatus.APPROVED;
+    logEvent(uto, "approve_task", actor, "Task approved");
+  },
+  rejectTask(uto, actor, reason) {
+    if (![TaskStatus.UNDER_REVIEW, TaskStatus.IN_PROGRESS].includes(uto.status)) {
+      throw new StateMachineError("Cannot reject from state " + uto.status + "; expected UNDER_REVIEW");
+    }
+    uto.status = TaskStatus.READY;
+    logEvent(uto, "reject_task", actor,
+      reason ? "Task rejected and returned to ready: " + reason : "Task rejected and returned to ready",
+      { reason: reason || "" });
+  },
+  reworkTask(uto, actor, reason) {
+    if (![TaskStatus.APPROVED, TaskStatus.UNDER_REVIEW].includes(uto.status)) {
+      throw new StateMachineError("Cannot rework from state " + uto.status + "; expected APPROVED");
+    }
+    uto.status = TaskStatus.IN_PROGRESS;
+    logEvent(uto, "rework_task", actor, reason ? "Task sent for rework: " + reason : "Task sent for rework",
+      { reason: reason || "" });
+  },
+  completeTask(uto, actor) {
+    if (uto.status !== TaskStatus.APPROVED) {
+      throw new StateMachineError("Cannot complete from state " + uto.status + "; expected APPROVED");
+    }
+    uto.status = TaskStatus.COMPLETED;
+    uto.completed_at = new Date().toISOString();
+    logEvent(uto, "complete_task", actor, "Task completed");
+  },
+  unblockTask(uto, actor) {
+    if (uto.status !== TaskStatus.BLOCKED) {
+      throw new StateMachineError("Cannot unblock from state " + uto.status + "; expected BLOCKED");
+    }
+    uto.status = TaskStatus.READY;
+    logEvent(uto, "unblocked", actor, "Task unblocked");
+  }
+};
+
+/* ---------- §7.3 confidence gate ---------- */
+function evaluateGate(uto) {
+  const issues = [];
+  if (!uto.ecp_ref) issues.push("Task has no Engineering Context Packet bound; assemble an ECP first");
+  (uto.assumptions || []).forEach(a => {
+    if (a.confidence_level !== "E") return;
+    if (uto.safety_critical) {
+      issues.push("Safety-critical task cannot proceed with level-E assumption: " + a.assumption_text);
+    } else if (!(uto.waivers || []).some(w => w.parameter === a.assumption_text)) {
+      issues.push("Level-E assumption requires waiver: " + a.assumption_text);
+    }
+  });
+  const canProceed = issues.length === 0;
+  return {
+    can_proceed: canProceed,
+    issues,
+    message: canProceed ? "Gate open: no unwaived level-E assumptions"
+      : (uto.safety_critical ? "Gate blocked: safety-critical task has unwaivable level-E assumptions"
+        : "Gate blocked: " + issues.length + " issue(s) require action")
+  };
+}
+
+/* ---------- orchestrator ---------- */
+class CPO {
+  constructor() {
+    this.projects = {}; this.sites = {}; this.tasks = {}; this.ecps = {}; this.audit = [];
+    this.versions = new ECPVersionManager();
+  }
+  record(entityType, entityId, action, actor, after, reason) {
+    this.audit.push({ timestamp: new Date().toISOString(), entity_type: entityType,
+      entity_id: entityId, action, actor: actor || "system", after: after || null, reason: reason || "" });
+  }
+  createProject(o) {
+    const p = {
+      project_id: newId(), name: o.name, description: "", project_type: o.project_type,
+      status: "draft", created_at: new Date().toISOString(), design_life_years: 50,
+      current_phase: "concept_design", budget_currency: "USD", risk_tolerance: "moderate",
+      location: { country: (o.country || "").toUpperCase(), region: o.region || "",
+                  municipality: o.municipality || "", latitude: Number(o.latitude),
+                  longitude: Number(o.longitude), elevation_m: 0 }
+    };
+    this.projects[p.project_id] = p;
+    this.record("project", p.project_id, "registered", "demo", { name: p.name });
+    return p;
+  }
+  registerSite(projectId, site) {
+    site.site_id = newId(); site.project_id = projectId;
+    this.sites[site.site_id] = site;
+    this.record("site", site.site_id, "registered", "demo", { name: site.name });
+    return site;
+  }
+  assemble(projectId, site, validityDays) {
+    const project = this.projects[projectId];
+    const ecp = assembleECP(project, site, null, validityDays || 30, this.versions);
+    this.ecps[ecp.ecp_id] = ecp;
+    this.record("ecp", ecp.ecp_id, "assembled", "demo",
+      { version: ecp.version, content_hash: ecp.content_hash });
+    return ecp;
+  }
+  createTask(projectId, ecpId, o) {
+    const ecp = this.ecps[ecpId];
+    const t = {
+      uto_id: newId(), project_id: projectId,
+      ecp_ref: ecp ? { ecp_id: ecp.ecp_id, version: ecp.version } : null,
+      task_name: o.task_name, discipline: o.discipline || "civil", task_type: o.task_type || "analysis",
+      safety_critical: !!o.safety_critical, requires_review: o.requires_review !== false,
+      status: TaskStatus.READY, created_at: new Date().toISOString(),
+      assumptions: o.assumptions || [], waivers: [], execution_log: []
+    };
+    this.tasks[t.uto_id] = t;
+    this.record("task", t.uto_id, "registered", "demo", { task_name: t.task_name });
+    return t;
+  }
+  checkGate(taskId) { return evaluateGate(this.tasks[taskId]); }
+  startTask(taskId, actor) {
+    const t = this.tasks[taskId];
+    if (!t) throw new StateMachineError("Task " + taskId + " not found");
+    const gate = evaluateGate(t);
+    if (!gate.can_proceed) {
+      if (t.status !== TaskStatus.BLOCKED) {
+        t.status = TaskStatus.BLOCKED;
+        logEvent(t, "blocked", actor, "Confidence gate blocked task start", { issues: gate.issues });
+      }
+      throw new GateBlocked(gate.message, gate.issues);
+    }
+    SM.startTask(t, actor);
+  }
+  markUnderReview(taskId, actor) { SM.markUnderReview(this.tasks[taskId], actor); }
+  approveTask(taskId, actor) { SM.approveTask(this.tasks[taskId], actor); }
+  rejectTask(taskId, actor, reason) { SM.rejectTask(this.tasks[taskId], actor, reason); }
+  reworkTask(taskId, actor, reason) { SM.reworkTask(this.tasks[taskId], actor, reason); }
+  completeTask(taskId, actor) { SM.completeTask(this.tasks[taskId], actor); }
+  applyWaiver(taskId, parameter, rationale, waivedBy) {
+    const t = this.tasks[taskId];
+    if (!t) throw new StateMachineError("Task " + taskId + " not found");
+    if (t.safety_critical) throw new AssemblyError("Cannot waive level-E assumptions on safety-critical tasks");
+    t.waivers.push({ parameter, rationale, waived_by: waivedBy,
+                     waived_at: new Date().toISOString(), scope: "task" });
+    logEvent(t, "waiver_applied", waivedBy, "Waiver applied for '" + parameter + "'",
+      { rationale, scope: "task" });
+    /* Release a blocked task once the gate opens — otherwise it is a dead end. */
+    if (t.status === TaskStatus.BLOCKED && evaluateGate(t).can_proceed) SM.unblockTask(t, waivedBy);
+  }
+}
+
+/* =====================================================================
+   UI layer
+   ===================================================================== */
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c =>
+  ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+
+const ICON = {
+  ok: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+  bad: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg>',
+  lock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+  unlock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>'
+};
+
+let cpo = new CPO();
+let current = { projectId: null, site: null, ecp: null };
+
+function toast(msg, kind) {
+  const el = document.createElement("div");
+  el.className = "toast " + (kind || "ok");
+  el.innerHTML = (kind === "err" ? ICON.bad : ICON.ok) + "<span>" + esc(msg) + "</span>";
+  $("toasts").appendChild(el);
+  setTimeout(() => el.remove(), kind === "err" ? 6500 : 3200);
+}
+
+/* ---------- soil layer editor ---------- */
+let layerRows = [];
+function addLayerRow(depthFrom, depthTo, soilType, level) {
+  layerRows.push({ depth_from_m: depthFrom, depth_to_m: depthTo, soil_type: soilType, confidence_level: level });
+  renderLayers();
+}
+function renderLayers() {
+  $("layers").innerHTML = layerRows.map((l, i) => `
+    <div class="row3" data-i="${i}">
+      <div><label>From (m)</label><input type="number" step="0.1" value="${l.depth_from_m}" data-f="depth_from_m" /></div>
+      <div><label>To (m)</label><input type="number" step="0.1" value="${l.depth_to_m}" data-f="depth_to_m" /></div>
+      <div><label>Soil</label><input value="${esc(l.soil_type)}" data-f="soil_type" /></div>
+      <div style="grid-column:span 2"><label>Confidence</label>
+        <select data-f="confidence_level">${LEVELS.map(x =>
+          `<option value="${x}" ${x===l.confidence_level?"selected":""}>${x} — ${LEVEL_MEANING[x]}</option>`).join("")}</select></div>
+      <div style="display:flex;align-items:flex-end">
+        <button class="btn btn-sm" data-del="${i}" title="Remove layer">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+        </button></div>
+    </div>`).join("");
+  $("layers").querySelectorAll("[data-f]").forEach(inp => inp.onchange = () => {
+    const i = Number(inp.closest("[data-i]").dataset.i);
+    const f = inp.dataset.f;
+    layerRows[i][f] = (f === "depth_from_m" || f === "depth_to_m") ? Number(inp.value) : inp.value;
+  });
+  $("layers").querySelectorAll("[data-del]").forEach(b => b.onclick = () => {
+    layerRows.splice(Number(b.dataset.del), 1); renderLayers();
+  });
+}
+
+/* ---------- register project + site ---------- */
+function registerProject() {
+  try {
+    const [region, municipality] = $("p-region").value.split("/").map(s => s.trim());
+    const project = cpo.createProject({
+      name: $("p-name").value.trim() || "Untitled project",
+      project_type: $("p-type").value,
+      country: $("p-country").value.trim(),
+      latitude: $("p-lat").value, longitude: $("p-lon").value,
+      region, municipality
+    });
+    const site = cpo.registerSite(project.project_id, {
+      name: "Site",
+      soil_profiles: [{ profile_id: newId(), borehole_id: "BH-07", layers: layerRows }],
+      hydrology: { catchment_area_km2: 12.4, return_period_years: 100 },
+      hazards: [],
+      data_gaps: $("p-gap").value.split("\n").map(s => s.trim()).filter(Boolean)
+    });
+    current = { projectId: project.project_id, site, ecp: null };
+    toast("Project and site registered");
+    render();
+  } catch (e) { toast(e.message, "err"); }
+}
+
+/* ---------- ECP render ---------- */
+function renderECP() {
+  const panel = $("ecp-panel");
+  if (!current.ecp) {
+    panel.innerHTML = `<div class="empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg>
+      Project registered. Assemble the context packet to see its confidence profile.</div>
+      <div class="actions" style="justify-content:center">
+        <button class="btn btn-primary" id="btn-assemble">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2 6 6 2-6 2-2 6-2-6-6-2 6-2Z"/></svg>
+          Assemble ECP</button></div>`;
+    $("btn-assemble").onclick = assemble;
+    return;
+  }
+
+  const ecp = current.ecp, cs = ecp.confidence_summary;
+  const counts = { A: cs.level_a_count, B: cs.level_b_count, C: cs.level_c_count,
+                   D: cs.level_d_count, E: cs.level_e_count };
+  const total = LEVELS.reduce((s,l) => s + counts[l], 0);
+  const bar = LEVELS.map(l => counts[l]
+    ? `<div style="flex:${counts[l]};background:var(--${l})" title="${l}: ${counts[l]}"></div>` : "").join("");
+  const rows = LEVELS.map(l => `
+    <div class="lvl-row">
+      <span class="lvl-tag"><span class="lvl-dot" style="background:var(--${l})"></span>${l}</span>
+      <div class="lvl-track"><div class="lvl-fill" style="width:${total ? counts[l]/total*100 : 0}%;background:var(--${l})"></div></div>
+      <span class="lvl-n">${counts[l]}</span>
+    </div>`).join("");
+  const j = resolveJurisdiction(
+    (cpo.projects[current.projectId] || {}).location?.country || "",
+    (cpo.projects[current.projectId] || {}).location?.region || "",
+    (cpo.projects[current.projectId] || {}).location?.municipality || "");
+
+  panel.innerHTML = `
+    <div class="fade">
+      <div class="stackbar">${bar}</div>
+      <div class="lvl-rows">${rows}</div>
+      <div class="verdict">
+        <div>
+          <div class="big" style="color:var(--${cs.average_confidence})">${cs.average_confidence}</div>
+          <div class="hint" style="margin:0">${esc(LEVEL_MEANING[cs.average_confidence])}</div>
+        </div>
+        <div style="text-align:right">
+          <div class="mono" style="font-size:12.5px;color:var(--muted)">v${ecp.version} · ${total} evidence record${total===1?"":"s"}</div>
+          <div class="hash">${esc(ecp.content_hash.slice(0,32))}…</div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn btn-primary btn-sm" id="btn-assemble">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2 6 6 2-6 2-2 6-2-6-6-2 6-2Z"/></svg>
+          Re-assemble</button>
+        <button class="btn btn-sm" id="btn-revise">Simulate site investigation (E→A)</button>
+      </div>
+      <div class="hint" id="idem-note" style="margin-top:8px"></div>
+
+      <div style="margin-top:18px;padding-top:15px;border-top:1px solid var(--line-soft)">
+        <div style="font-size:12px;font-weight:500;color:var(--muted);margin-bottom:8px">
+          §5.3 r.5 jurisdiction cascade — ${esc(j.countryName)} · ${esc(j.jurisdiction)}</div>
+        <div class="chips">${ecp.applicable_codes.map(c =>
+          `<span class="chip">${esc(c.code_name)}</span>`).join("")}</div>
+      </div>
+
+      ${cs.uncertainty_items.length ? `
+      <div style="margin-top:16px;padding-top:15px;border-top:1px solid var(--line-soft)">
+        <div style="font-size:12px;font-weight:500;color:var(--muted);margin-bottom:8px">
+          §12 open uncertainties (${cs.uncertainty_items.length})</div>
+        ${cs.uncertainty_items.map(u => `
+          <div class="note" style="margin-bottom:6px">
+            <strong>${esc(u.parameter)}</strong> — ${esc(u.description)}
+            <div style="color:var(--muted);margin-top:3px">${esc(u.recommended_action)}</div>
+          </div>`).join("")}
+      </div>` : ""}
+    </div>`;
+
+  $("btn-assemble").onclick = assemble;
+  $("btn-revise").onclick = reviseSite;
+  $("idem-note").innerHTML = lastAssemblyNote || "";
+}
+
+let lastAssemblyNote = "";
+function assemble() {
+  if (!current.projectId) { toast("Register a project first", "err"); return; }
+  try {
+    const before = current.ecp;
+    const ecp = cpo.assemble(current.projectId, current.site, 30);
+    current.ecp = ecp;
+    if (before) {
+      const same = before.content_hash === ecp.content_hash;
+      lastAssemblyNote = same
+        ? `<span style="color:var(--ok)">Content unchanged — hash and version held at v${ecp.version}. That is §5.3 r.4 idempotency: only engineering content moves the version, not the clock.</span>`
+        : `<span style="color:var(--primary)">Content changed — version bumped v${before.version} → v${ecp.version}.</span>`;
+    } else { lastAssemblyNote = ""; }
+    render();
+  } catch (e) { toast(e.message, "err"); }
+}
+
+function reviseSite() {
+  if (!current.site) return;
+  current.site.soil_profiles[0].layers.forEach(l => l.confidence_level = "A");
+  current.site.data_gaps = current.site.data_gaps.slice(0, 1);
+  lastAssemblyNote = "";
+  toast("Site upgraded: soil layers promoted to level A (measured)");
+  assemble();
+}
+
+/* ---------- tasks render ---------- */
+function renderTasks() {
+  const panel = $("tasks-panel");
+  const tasks = Object.values(cpo.tasks);
+  if (!tasks.length) {
+    panel.innerHTML = `<div class="empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>
+      No tasks yet. Create one — try adding a level-E assumption.</div>`;
+    return;
+  }
+  panel.innerHTML = tasks.map(t => {
+    const gate = evaluateGate(t);
+    const acts = [];
+    if (t.status === "ready") acts.push(["start", "Start", "btn-primary"]);
+    if (t.status === "blocked") acts.push(["start", "Try start", "btn-primary"]);
+    if (t.status === "in_progress") acts.push(["review", "Submit for review", "btn-primary"]);
+    if (t.status === "under_review") {
+      acts.push(["approve", "Approve", "btn-primary"]);
+      acts.push(["reject", "Reject", ""]);
+    }
+    if (t.status === "approved") {
+      acts.push(["complete", "Complete", "btn-primary"]);
+      acts.push(["rework", "Rework", ""]);
+    }
+    const levelE = t.assumptions.filter(a => a.confidence_level === "E");
+    if (!gate.can_proceed && levelE.length && !t.safety_critical) {
+      acts.push(["waive", "Apply waiver", ""]);
+    }
+    return `
+    <div class="fade" style="border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px">
+      <div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap">
+        <div style="flex:1;min-width:200px">
+          <div style="font-weight:600">${esc(t.task_name)}</div>
+          <div style="font-size:12.5px;color:var(--muted)">
+            ${esc(t.discipline)} / ${esc(t.task_type)}
+            ${t.safety_critical ? ' · <span style="color:var(--bad);font-weight:600">safety-critical</span>' : ""}
+            · ECP v${t.ecp_ref ? t.ecp_ref.version : "—"}</div>
+        </div>
+        <span class="pill ${t.status}"><span class="dot"></span>${esc(t.status.replace("_"," "))}</span>
+      </div>
+
+      <div class="gate ${gate.can_proceed ? "open" : "shut"}" style="margin-top:11px">
+        <div class="gate-h">${gate.can_proceed ? ICON.unlock + "Gate open" : ICON.lock + "Gate blocked"}</div>
+        <p>${esc(gate.message)}</p>
+        ${gate.issues.length ? `<ul>${gate.issues.map(i => `<li>${esc(i)}</li>`).join("")}</ul>` : ""}
+      </div>
+
+      ${t.waivers.length ? `<div class="note" style="margin-top:9px">
+        ${t.waivers.map(w => `<div><strong>Waiver</strong> by ${esc(w.waived_by)} — “${esc(w.rationale)}”</div>`).join("")}
+      </div>` : ""}
+
+      <div class="actions">
+        ${acts.map(([a,label,cls]) =>
+          `<button class="btn btn-sm ${cls}" data-act="${a}" data-id="${t.uto_id}"
+            ${a==="waive" ? `data-p="${esc(levelE[0].assumption_text)}"` : ""}>${label}</button>`).join("")}
+      </div>
+
+      <details style="margin-top:10px">
+        <summary style="font-size:12.5px;color:var(--muted);cursor:pointer">
+          Execution log — ${t.execution_log.length} event${t.execution_log.length===1?"":"s"}</summary>
+        <ol class="timeline" style="margin-top:12px">
+          ${t.execution_log.map(e => `
+            <li class="evt-${esc(e.event_type)}">
+              <div><span class="ev">${esc(e.event_type.replace(/_/g," "))}</span>
+                   <span class="ac"> · ${esc(e.actor)}</span></div>
+              <div class="ac">${esc(e.description)}</div>
+              <div class="ts mono">${esc(new Date(e.timestamp).toLocaleTimeString())}</div>
+            </li>`).join("")}
+        </ol>
+      </details>
+    </div>`;
+  }).join("");
+
+  panel.querySelectorAll("[data-act]").forEach(b => b.onclick = () => act(b.dataset.act, b.dataset.id, b.dataset.p));
+}
+
+function act(action, taskId, parameter) {
+  try {
+    if (action === "start") cpo.startTask(taskId, "Engineer");
+    else if (action === "review") cpo.markUnderReview(taskId, "Engineer");
+    else if (action === "approve") cpo.approveTask(taskId, "Chief Reviewer");
+    else if (action === "complete") cpo.completeTask(taskId, "Engineer");
+    else if (action === "reject") cpo.rejectTask(taskId, "Independent Checker", "Calculation does not match the hand check");
+    else if (action === "rework") cpo.reworkTask(taskId, "Independent Checker", "Detail missing");
+    else if (action === "waive") cpo.applyWaiver(taskId, parameter,
+      "Regional piezometer data supports this value at 90% confidence; conservative margin applied. Verification required by the site investigation.",
+      "Chief Engineer");
+    render();
+  } catch (e) {
+    render();
+    toast(e.message, "err");
+    if (e.issues) e.issues.forEach(i => toast("• " + i, "err"));
+  }
+}
+
+function createTask() {
+  if (!current.ecp) { toast("Assemble an ECP first", "err"); return; }
+  const text = $("t-assume").value.trim();
+  cpo.createTask(current.projectId, current.ecp.ecp_id, {
+    task_name: $("t-name").value.trim() || "Untitled task",
+    discipline: $("t-disc").value.trim() || "civil",
+    safety_critical: $("t-safety").value === "true",
+    assumptions: text ? [{ assumption_text: text, confidence_level: "E" }] : []
+  });
+  $("t-name").value = "";
+  toast("Task created");
+  render();
+}
+
+/* ---------- audit ---------- */
+function renderAudit() {
+  const panel = $("audit-panel");
+  if (!cpo.audit.length) { panel.innerHTML = '<div class="empty">Nothing recorded yet.</div>'; return; }
+  panel.innerHTML = `<table><thead><tr><th>When</th><th>Entity</th><th>Action</th><th>Actor</th><th>Detail</th></tr></thead>
+    <tbody>${cpo.audit.slice().reverse().map(a => `
+      <tr>
+        <td class="mono" style="color:var(--muted-2);white-space:nowrap">${esc(new Date(a.timestamp).toLocaleTimeString())}</td>
+        <td>${esc(a.entity_type)}<div class="mono" style="font-size:11px;color:var(--muted-2)">${esc(a.entity_id.slice(0,12))}</div></td>
+        <td>${esc(a.action)}</td>
+        <td>${esc(a.actor)}</td>
+        <td class="mono" style="font-size:11.5px;color:var(--muted)">${esc(a.after ? JSON.stringify(a.after).slice(0,58) : "")}</td>
+      </tr>`).join("")}</tbody></table>`;
+}
+
+function renderChain() {
+  const steps = [
+    ["Project & site", !!current.projectId],
+    ["ECP assembled", !!current.ecp],
+    ["Tasks", Object.keys(cpo.tasks).length > 0],
+    ["Completed", Object.values(cpo.tasks).some(t => t.status === "completed")]
+  ];
+  $("chain").innerHTML = steps.map((s, i) =>
+    `${i ? '<span class="chain-arrow">→</span>' : ""}<span class="chain-node ${s[1] ? "done" : ""}">${esc(s[0])}</span>`
+  ).join("");
+}
+
+function render() { renderChain(); renderECP(); renderTasks(); renderAudit(); }
+
+/* ---------- wiring ---------- */
+$("btn-add-layer").onclick = () => {
+  const last = layerRows[layerRows.length - 1];
+  addLayerRow(last ? last.depth_to_m : 0, (last ? last.depth_to_m : 0) + 5, "Silty sand", "E");
+};
+$("btn-register").onclick = registerProject;
+$("btn-task").onclick = createTask;
+$("btn-reset").onclick = () => { cpo = new CPO(); current = { projectId:null, site:null, ecp:null };
+  lastAssemblyNote = ""; render(); toast("Reset"); };
+$("btn-example").onclick = () => {
+  $("p-name").value = "Al-Wadi Flood Protection";
+  $("p-country").value = "SA";
+  $("p-region").value = "Riyadh Province / Al-Wadi";
+  $("p-lat").value = "24.7136"; $("p-lon").value = "46.6753";
+  $("t-name").value = "Hydraulic analysis of proposed barrier";
+  $("t-assume").value = "Groundwater level is 5.2 m below surface";
+  $("t-safety").value = "false";
+  layerRows = [
+    { depth_from_m: 0, depth_to_m: 5, soil_type: "Silty sand", classification: "SP-SM", confidence_level: "E" },
+    { depth_from_m: 5, depth_to_m: 20, soil_type: "Medium dense sand", classification: "SP", confidence_level: "E" }
+  ];
+  renderLayers();
+  cpo = new CPO(); current = { projectId:null, site:null, ecp:null }; lastAssemblyNote = "";
+  registerProject(); assemble();
+  toast("Example loaded — now create a task");
+};
+
+addLayerRow(0, 5, "Silty sand", "E");
+addLayerRow(5, 20, "Medium dense sand", "E");
+render();
+</script>
+</body>
+</html>
