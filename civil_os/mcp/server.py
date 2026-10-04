@@ -1,9 +1,7 @@
 """TSD-001 §8 — MCP (Model Context Protocol) in-process server."""
 from __future__ import annotations
 
-
 from typing import TYPE_CHECKING, Any, Callable, Optional
-
 
 if TYPE_CHECKING:
     pass

@@ -17,6 +17,12 @@ Based on: TSD-001 v0.1 + Phase-1 Implementation Review
 | **Priority** | Must / Should / Could / Won't (MoSCoW) |
 | **AC** | Acceptance Criteria (Gherkin-style Given/When/Then) |
 | **Deps** | Dependencies on other stories |
+| **DONE** | Implemented and covered by tests (see `STATUS.md`) |
+
+All nine Phase-1 stories marked **DONE** (P1-S1-01…04, P1-S3-01…04, P1-S4-04)
+are covered by `tests/test_hardening.py`. The remaining Phase-1 stories —
+P1-S2-01…04 (service decomposition, event bus) and P1-S4-01…03 (MCP resources,
+prompts, transport) — are not started.
 
 ---
 
@@ -27,10 +33,10 @@ Based on: TSD-001 v0.1 + Phase-1 Implementation Review
 
 | ID | Story | Points | Priority | AC | Deps |
 |----|-------|--------|----------|-----|------|
-| P1-S1-01 | Fix datetime round-trip in JSON persistence | 3 | Must | Given a project with created_at=2026-08-31T12:00:00+00:00, When exported to JSON and re-imported, Then created_at equals original exactly | — |
-| P1-S1-02 | Implement true SHA-256 content hashing for ECP | 3 | Must | Given an ECP assembled twice with identical content, When version is computed, Then both versions are identical (idempotent) | — |
-| P1-S1-03 | Populate ConfidenceSummary during ECP assembly | 5 | Must | Given a site with soil profiles having confidence levels A,C,E, When ECP is assembled, Then confidence_summary shows level_a_count=1, level_c_count=1, level_e_count=1 | P1-S1-02 |
-| P1-S1-04 | Add thread-safe registry with RLock | 3 | Should | Given two threads registering projects simultaneously, When both complete, Then both projects exist with unique IDs | — |
+| P1-S1-01 | **DONE** Fix datetime round-trip in JSON persistence | 3 | Must | Given a project with created_at=2026-08-31T12:00:00+00:00, When exported to JSON and re-imported, Then created_at equals original exactly | — |
+| P1-S1-02 | **DONE** Implement true SHA-256 content hashing for ECP | 3 | Must | Given an ECP assembled twice with identical content, When version is computed, Then both versions are identical (idempotent) | — |
+| P1-S1-03 | **DONE** Populate ConfidenceSummary during ECP assembly | 5 | Must | Given a site with soil profiles having confidence levels A,C,E, When ECP is assembled, Then confidence_summary shows level_a_count=1, level_c_count=1, level_e_count=1 | P1-S1-02 |
+| P1-S1-04 | **DONE** Add thread-safe registry with RLock | 3 | Should | Given two threads registering projects simultaneously, When both complete, Then both projects exist with unique IDs | — |
 
 ### Sprint 2: CPO Service Decomposition (Weeks 3–4)
 
@@ -45,10 +51,10 @@ Based on: TSD-001 v0.1 + Phase-1 Implementation Review
 
 | ID | Story | Points | Priority | AC | Deps |
 |----|-------|--------|----------|-----|------|
-| P1-S3-01 | Add project-level audit trail | 3 | Must | Given a project is updated, When audit log is queried, Then the update action, actor, before/after state are recorded | P1-S2-01 |
-| P1-S3-02 | Add ECP-level audit trail | 3 | Must | Given an ECP is reassembled, When audit log is queried, Then version bump and change reason are recorded | P1-S2-02 |
-| P1-S3-03 | Implement reject_task() and rework_task() | 3 | Must | Given a task under review with defects, When reject_task() is called, Then status becomes READY and rejection reason is logged | P1-S2-03 |
-| P1-S3-04 | Implement BLOCKED state handling | 3 | Should | Given a task with unresolved blocking issues, When state is checked, Then status is BLOCKED and unblock conditions are listed | P1-S3-03 |
+| P1-S3-01 | **DONE** Add project-level audit trail | 3 | Must | Given a project is updated, When audit log is queried, Then the update action, actor, before/after state are recorded | P1-S2-01 |
+| P1-S3-02 | **DONE** Add ECP-level audit trail | 3 | Must | Given an ECP is reassembled, When audit log is queried, Then version bump and change reason are recorded | P1-S2-02 |
+| P1-S3-03 | **DONE** Implement reject_task() and rework_task() | 3 | Must | Given a task under review with defects, When reject_task() is called, Then status becomes READY and rejection reason is logged | P1-S2-03 |
+| P1-S3-04 | **DONE** Implement BLOCKED state handling | 3 | Should | Given a task with unresolved blocking issues, When state is checked, Then status is BLOCKED and unblock conditions are listed | P1-S3-03 |
 
 ### Sprint 4: MCP Resources & Prompts (Weeks 7–8)
 
@@ -57,7 +63,7 @@ Based on: TSD-001 v0.1 + Phase-1 Implementation Review
 | P1-S4-01 | Implement MCP resource endpoints | 5 | Must | Given a resource URI resource://project/{id}/site, When requested through MCP, Then site data is returned with proper schema | — |
 | P1-S4-02 | Implement MCP prompt templates | 5 | Must | Given a prompt URI prompt://feasibility_study, When requested, Then a populated template with project variables is returned | P1-S4-01 |
 | P1-S4-03 | Add MCP transport abstraction (stdio/HTTP) | 8 | Should | Given an MCP server configured for HTTP, When a tool is called via HTTP POST, Then the correct handler executes and returns JSON | P1-S4-01 |
-| P1-S4-04 | Add dependency enforcement (lag_days) | 3 | Should | Given task B depends on task A with lag_days=3, When start_task(B) is called before A completes + 3 days, Then StateMachineError is raised | P1-S3-03 |
+| P1-S4-04 | **DONE** Add dependency enforcement (lag_days) | 3 | Should | Given task B depends on task A with lag_days=3, When start_task(B) is called before A completes + 3 days, Then StateMachineError is raised | P1-S3-03 |
 
 ---
 

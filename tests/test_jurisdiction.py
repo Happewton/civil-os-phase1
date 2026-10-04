@@ -1,5 +1,4 @@
 """Tests for jurisdiction cascade."""
-import pytest
 from civil_os.engine import JurisdictionResolver
 from civil_os.schemas import Location
 
@@ -13,7 +12,7 @@ def test_jurisdiction_resolution_saudi_arabia():
         latitude=24.7136,
         longitude=46.6753,
     )
-    
+
     result = JurisdictionResolver.resolve(location)
     assert result["country_code"] == "SA"
     assert "SBC" in result["applicable_codes"][0]
@@ -29,7 +28,7 @@ def test_jurisdiction_resolution_united_states():
         latitude=37.7749,
         longitude=-122.4194,
     )
-    
+
     result = JurisdictionResolver.resolve(location)
     assert result["country_code"] == "US"
     assert any("IBC" in code or "ACI" in code or "AASHTO" in code
@@ -43,7 +42,7 @@ def test_jurisdiction_resolution_fallback():
         latitude=0,
         longitude=0,
     )
-    
+
     result = JurisdictionResolver.resolve(location)
     assert result["country_code"] == "INT"
     assert "ISO" in result["applicable_codes"][0] or "Eurocode" in result["applicable_codes"][0]

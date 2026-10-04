@@ -1,8 +1,8 @@
 """Pytest configuration and fixtures for CIVIL-OS tests."""
 import pytest
+
 from civil_os import CivilProjectOrchestrator
-from civil_os.schemas import (Location, Need, Project, ProjectType, Site,
-                              Requirement, AffectedPopulation)
+from civil_os.schemas import AffectedPopulation, Need, Requirement, Site
 
 
 @pytest.fixture

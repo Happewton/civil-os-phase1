@@ -1,12 +1,9 @@
 """TSD-001 §5.3 r.5 — Jurisdiction → regulations → codes cascade."""
 from __future__ import annotations
 
-
 from typing import TYPE_CHECKING, Optional
 
-
 from ..schemas import Location
-
 
 if TYPE_CHECKING:
     pass

@@ -1,16 +1,11 @@
 """TSD-001 §4.2.7 — RISK entity."""
 from __future__ import annotations
 
-
-from typing import Literal, Optional
-
+from typing import Literal
 
 from pydantic import Field
 
-
 from .base import CivilOSModel, ConfidenceLevel, Severity, new_id
-
-
 
 
 class Risk(CivilOSModel):

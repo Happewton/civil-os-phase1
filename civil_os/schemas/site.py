@@ -2,17 +2,11 @@
 climate, hazards, existing assets, constraints)."""
 from __future__ import annotations
 
-
 from typing import Any, Literal, Optional
-
 
 from pydantic import Field, field_validator, model_validator
 
-
 from .base import CivilOSModel, ConfidenceLevel, ParameterEvidence, derive_risk_level, new_id
-
-
-
 
 # --------------------------------------------------------------------------- #
 # Geometry (RFC 7946)
@@ -67,7 +61,7 @@ class SoilLayer(CivilOSModel):
 
 
     @model_validator(mode="after")
-    def _depths_ordered(self) -> "SoilLayer":
+    def _depths_ordered(self) -> SoilLayer:
         if self.depth_to_m <= self.depth_from_m:
             raise ValueError("depth_to_m must be greater than depth_from_m")
         return self
@@ -204,6 +198,8 @@ class Site(CivilOSModel):
 
     site_id: str = Field(default_factory=new_id)
     project_id: str
+    name: str = ""
+    description: str = ""
     boundary: Optional[Boundary] = None
     terrain: Terrain = Field(default_factory=Terrain)
     geology: Geology = Field(default_factory=Geology)
