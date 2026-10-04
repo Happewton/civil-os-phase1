@@ -1,18 +1,13 @@
 """TSD-001 §4.2.3 — REQUIREMENT entity."""
 from __future__ import annotations
 
-
 from datetime import datetime
 from enum import Enum
 from typing import Literal, Optional
 
-
 from pydantic import Field
 
-
 from .base import CivilOSModel, ConfidenceLevel, new_id, utcnow
-
-
 
 
 class RequirementStatus(str, Enum):

@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CIVIL-OS — Project Intelligence</title>
+<style>
+  :root {
+    --bg: #0f1419; --panel: #171d26; --panel-2: #1e2530; --line: #2a323f;
+    --text: #e6edf3; --muted: #8b98a5; --accent: #4a9eff;
+    --ok: #3fb950; --warn: #d29922; --bad: #f85149; --a: #3fb950; --b: #58a6ff;
+    --c: #d29922; --d: #db8b4a; --e: #f85149;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  header {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 14px 20px; border-bottom: 1px solid var(--line); background: var(--panel);
+    position: sticky; top: 0; z-index: 10;
+  }
+  h1 { font-size: 17px; margin: 0; letter-spacing: .3px; }
+  .tag { color: var(--muted); font-size: 12px; }
+  .grow { flex: 1; }
+  main { max-width: 1180px; margin: 0 auto; padding: 20px; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 10px; padding: 16px; margin-bottom: 16px;
+  }
+  .panel h2 { font-size: 14px; margin: 0 0 12px; text-transform: uppercase;
+              letter-spacing: .8px; color: var(--muted); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+  .grid.two { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  input, select, textarea {
+    width: 100%; padding: 8px 10px; background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--line); border-radius: 6px; font: inherit;
+  }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  button {
+    padding: 8px 14px; border-radius: 6px; border: 1px solid var(--accent);
+    background: var(--accent); color: #04121f; font-weight: 600; cursor: pointer; font: inherit;
+  }
+  button.ghost { background: transparent; color: var(--text); border-color: var(--line); font-weight: 500; }
+  button:hover { filter: brightness(1.1); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .6px; }
+  tr:last-child td { border-bottom: none; }
+  .pill {
+    display: inline-block; padding: 2px 9px; border-radius: 99px; font-size: 11px;
+    font-weight: 700; letter-spacing: .4px; border: 1px solid;
+  }
+  .pill.ready { color: var(--muted); border-color: var(--muted); }
+  .pill.in_progress { color: var(--accent); border-color: var(--accent); }
+  .pill.under_review { color: var(--warn); border-color: var(--warn); }
+  .pill.approved, .pill.completed { color: var(--ok); border-color: var(--ok); }
+  .pill.blocked, .pill.rejected { color: var(--bad); border-color: var(--bad); }
+  .lvl { font-weight: 800; }
+  .lvl.A { color: var(--a); } .lvl.B { color: var(--b); } .lvl.C { color: var(--c); }
+  .lvl.D { color: var(--d); } .lvl.E { color: var(--e); }
+  .bar { display: flex; height: 8px; border-radius: 99px; overflow: hidden; background: var(--panel-2); margin: 10px 0 6px; }
+  .bar span { display: block; }
+  .muted { color: var(--muted); }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 13px; }
+  .kv dt { color: var(--muted); }
+  .issues { margin: 8px 0 0; padding-left: 18px; color: var(--bad); font-size: 13px; }
+  #toast {
+    position: fixed; right: 18px; bottom: 18px; max-width: 420px; z-index: 50;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .toast { padding: 10px 14px; border-radius: 8px; border: 1px solid var(--line);
+           background: var(--panel-2); font-size: 13px; box-shadow: 0 6px 22px rgba(0,0,0,.45); }
+  .toast.ok { border-color: var(--ok); }
+  .toast.err { border-color: var(--bad); }
+  .empty { color: var(--muted); padding: 14px 0; text-align: center; }
+  details summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>CIVIL-OS</h1>
+  <span class="tag">Project Intelligence &amp; Execution System</span>
+  <span class="grow"></span>
+  <span class="tag" id="status">connecting…</span>
+  <button class="ghost" id="refresh">Refresh</button>
+</header>
+
+<main>
+  <!-- Projects -->
+  <section class="panel">
+    <h2>Projects</h2>
+    <table>
+      <thead><tr><th>Name</th><th>Type</th><th>Location</th><th>Budget</th><th>Phase</th><th></th></tr></thead>
+      <tbody id="projects"></tbody>
+    </table>
+    <details style="margin-top:12px">
+      <summary>Register a new project</summary>
+      <div class="grid" style="margin-top:12px">
+        <div><label>Name</label><input id="p-name" placeholder="Riyadh Stormwater Network" /></div>
+        <div><label>Type</label><select id="p-type">
+          <option>water</option><option>water_supply</option><option>wastewater</option>
+          <option>transportation</option><option>structural</option><option>building</option>
+          <option>urban</option><option>environmental</option><option>energy</option>
+          <option>mining</option></select></div>
+        <div><label>Country (ISO-2)</label><input id="p-country" value="SA" maxlength="2" /></div>
+        <div><label>Region</label><input id="p-region" placeholder="Riyadh Province" /></div>
+        <div><label>Municipality</label><input id="p-muni" placeholder="Riyadh" /></div>
+        <div><label>Latitude</label><input id="p-lat" type="number" step="any" value="24.7136" /></div>
+        <div><label>Longitude</label><input id="p-lon" type="number" step="any" value="46.6753" /></div>
+        <div><label>Budget</label><input id="p-budget" type="number" step="any" placeholder="15000000" /></div>
+        <div><label>Risk tolerance</label><select id="p-risk">
+          <option>conservative</option><option selected>moderate</option><option>aggressive</option></select></div>
+        <div><label>Design life (years)</label><input id="p-life" type="number" value="50" /></div>
+      </div>
+      <div class="row" style="margin-top:12px"><button id="create-project">Create project</button></div>
+    </details>
+  </section>
+
+  <!-- Context builder -->
+  <section class="panel">
+    <h2>Project context — site, need, ECP</h2>
+    <div class="row">
+      <div style="flex:1;min-width:230px"><label>Project</label><select id="ctx-project"></select></div>
+      <button class="ghost" id="add-site">Register site</button>
+      <button class="ghost" id="add-need">Register need</button>
+      <button id="assemble">Assemble ECP</button>
+    </div>
+    <div class="grid two" style="margin-top:14px">
+      <div>
+        <label>Sites</label>
+        <table><tbody id="sites"></tbody></table>
+      </div>
+      <div>
+        <label>Needs</label>
+        <table><tbody id="needs"></tbody></table>
+      </div>
+    </div>
+    <div id="ecps" style="margin-top:14px"></div>
+  </section>
+
+  <!-- Tasks -->
+  <section class="panel">
+    <h2>Tasks — lifecycle, confidence gate, waivers</h2>
+    <div class="row">
+      <div style="flex:1;min-width:200px"><label>ECP (for new tasks)</label><select id="task-ecp"></select></div>
+      <div style="flex:1;min-width:200px"><label>Task name</label><input id="task-name" placeholder="Hydraulic analysis of barrier" /></div>
+      <div style="flex:0 0 150px"><label>Discipline</label><input id="task-disc" value="civil" /></div>
+      <div style="flex:0 0 130px"><label>Safety-critical</label>
+        <select id="task-safety"><option value="false">No</option><option value="true">Yes</option></select></div>
+      <button id="create-task">Create task</button>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <div style="flex:1;min-width:280px"><label>Level-E assumption (optional)</label>
+        <input id="task-assumption" placeholder="Groundwater level is 5.2 m below surface" /></div>
+    </div>
+    <div id="tasks" style="margin-top:14px"></div>
+  </section>
+
+  <!-- Audit -->
+  <section class="panel">
+    <h2>Audit trail</h2>
+    <div id="audit"><div class="empty">No audit entries yet.</div></div>
+  </section>
+</main>
+
+<div id="toast"></div>
+
+<script>
+const API = "/api/v1";
+let state = { projects: [], projectId: null, ecps: [], tasks: [], audit: [] };
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+function toast(msg, kind = "ok") {
+  const el = document.createElement("div");
+  el.className = "toast " + kind;
+  el.textContent = msg;
+  $("toast").appendChild(el);
+  setTimeout(() => el.remove(), kind === "err" ? 7000 : 3500);
+}
+
+async function call(path, options = {}) {
+  const res = await fetch(API + path, {
+    headers: { "Content-Type": "application/json" },
+    ...options,
+  });
+  const text = await res.text();
+  let body = null;
+  try { body = text ? JSON.parse(text) : null; } catch { body = { raw: text }; }
+  if (!res.ok) {
+    const err = body && body.error ? body.error : { code: res.status, message: text || res.statusText };
+    const e = new Error(`${err.code}: ${err.message}`);
+    e.payload = err;
+    throw e;
+  }
+  return body;
+}
+
+async function guard(fn, okMsg) {
+  try {
+    const r = await fn();
+    if (okMsg) toast(okMsg);
+    await refresh();
+    return r;
+  } catch (e) {
+    toast(e.message, "err");
+    if (e.payload && e.payload.detail && e.payload.detail.issues) {
+      e.payload.detail.issues.forEach(i => toast("• " + i, "err"));
+    }
+    await refresh();
+    return null;
+  }
+}
+
+/* ------------------------------ rendering ------------------------------ */
+function pill(status) { return `<span class="pill ${esc(status)}">${esc(status)}</span>`; }
+
+function renderProjects() {
+  const tb = $("projects");
+  if (!state.projects.length) {
+    tb.innerHTML = '<tr><td colspan="6" class="empty">No projects yet — register one below.</td></tr>';
+    return;
+  }
+  tb.innerHTML = state.projects.map(p => `
+    <tr>
+      <td><strong>${esc(p.name)}</strong><div class="muted mono">${esc(p.project_id)}</div></td>
+      <td>${esc(p.project_type)}</td>
+      <td>${p.location ? esc([p.location.municipality, p.location.region, p.location.country].filter(Boolean).join(", ")) : '<span class="muted">—</span>'}</td>
+      <td>${p.budget_amount != null ? esc(p.budget_currency + " " + Number(p.budget_amount).toLocaleString()) : '<span class="muted">—</span>'}</td>
+      <td>${esc(p.current_phase)}</td>
+      <td><button class="ghost" data-sel="${esc(p.project_id)}">Open</button></td>
+    </tr>`).join("");
+  tb.querySelectorAll("[data-sel]").forEach(b =>
+    b.onclick = () => { state.projectId = b.dataset.sel; refresh(); });
+}
+
+function renderContext() {
+  const sel = $("ctx-project");
+  sel.innerHTML = state.projects.map(p =>
+    `<option value="${esc(p.project_id)}" ${p.project_id === state.projectId ? "selected" : ""}>${esc(p.name)}</option>`
+  ).join("");
+
+  $("sites").innerHTML = (state.sites.length
+    ? state.sites.map(s => `<tr><td>${esc(s.name)}</td>
+        <td class="muted">${s.soil_profiles.length} profile(s)</td>
+        <td>${s.data_gaps.length} gap(s)</td></tr>`).join("")
+    : '<tr><td class="empty">No sites registered.</td></tr>');
+
+  $("needs").innerHTML = (state.needs.length
+    ? state.needs.map(n => `<tr><td>${esc(n.category)}</td>
+        <td>${esc(n.problem_statement.slice(0, 70))}${n.problem_statement.length > 70 ? "…" : ""}</td>
+        <td>${n.affected_population.count.toLocaleString()}</td></tr>`).join("")
+    : '<tr><td class="empty">No needs registered.</td></tr>');
+
+  state.ecps.forEach(e => {
+    const cs = e.confidence_summary || {};
+    const total = ["A", "B", "C", "D", "E"].reduce((s, k) => s + (cs["level_" + k.toLowerCase() + "_count"] || 0), 0) || 1;
+    const seg = (k, cls) => {
+      const n = cs["level_" + k.toLowerCase() + "_count"] || 0;
+      return n ? `<span style="width:${(n / total) * 100}%;background:var(--${cls})" title="${k}: ${n}"></span>` : "";
+    };
+    const codes = (e.applicable_codes || []).map(c => esc(c.code_name)).join(", ");
+    $("ecps").insertAdjacentHTML("beforeend", `
+      <div class="panel" style="background:var(--panel-2);margin:0 0 10px">
+        <div class="row" style="justify-content:space-between">
+          <strong class="mono">ECP v${e.version}</strong>
+          <span class="muted mono">${esc((e.content_hash || "").slice(0, 16))}… · valid to ${esc((e.validity?.valid_until || "").slice(0, 10))}</span>
+        </div>
+        <div class="bar">${seg("A", "a")}${seg("B", "b")}${seg("C", "c")}${seg("D", "d")}${seg("E", "e")}</div>
+        <div class="muted" style="font-size:12px">
+          Confidence A=${cs.level_a_count || 0} B=${cs.level_b_count || 0} C=${cs.level_c_count || 0}
+          D=${cs.level_d_count || 0} E=${cs.level_e_count || 0} · average
+          <span class="lvl ${esc(cs.average_confidence || "E")}">${esc(cs.average_confidence || "E")}</span>
+        </div>
+        <div class="muted" style="font-size:12px;margin-top:4px">${codes}</div>
+      </div>`);
+  });
+
+  $("task-ecp").innerHTML = '<option value="">(no ECP)</option>' +
+    state.ecps.map(e => `<option value="${esc(e.ecp_id)}">ECP v${e.version} · ${esc(e.content_hash.slice(0, 8))}</option>`).join("");
+}
+
+function renderTasks() {
+  const box = $("tasks");
+  if (!state.tasks.length) { box.innerHTML = '<div class="empty">No tasks for this project.</div>'; return; }
+  box.innerHTML = state.tasks.map(t => {
+    const gate = t.gate || {};
+    const issues = (gate.issues || []).map(i => `<li>${esc(i)}</li>`).join("");
+    const levelE = (t.assumptions || []).filter(a => a.confidence_level === "E");
+    const act = [];
+    if (t.status === "ready") act.push(`<button data-a="start" data-t="${t.uto_id}">Start</button>`);
+    if (t.status === "in_progress") act.push(`<button data-a="review" data-t="${t.uto_id}">Submit for review</button>`);
+    if (t.status === "under_review") {
+      act.push(`<button data-a="approve" data-t="${t.uto_id}">Approve</button>`);
+      act.push(`<button class="ghost" data-a="reject" data-t="${t.uto_id}">Reject</button>`);
+    }
+    if (t.status === "approved") {
+      act.push(`<button data-a="complete" data-t="${t.uto_id}">Complete</button>`);
+      act.push(`<button class="ghost" data-a="rework" data-t="${t.uto_id}">Rework</button>`);
+    }
+    if (!gate.can_proceed && levelE.length && !t.safety_critical) {
+      act.push(`<button class="ghost" data-a="waive" data-t="${t.uto_id}" data-p="${esc(levelE[0].assumption_text)}">Apply waiver</button>`);
+    }
+    return `
+    <div class="panel" style="background:var(--panel-2);margin:0 0 10px">
+      <div class="row" style="justify-content:space-between">
+        <div><strong>${esc(t.task_name)}</strong>
+          <span class="muted"> · ${esc(t.discipline)} / ${esc(t.task_type)}${t.safety_critical ? ' · <span style="color:var(--bad)">safety-critical</span>' : ""}</span></div>
+        ${pill(t.status)}
+      </div>
+      <div class="row" style="margin-top:8px">${act.join(" ")}</div>
+      ${issues ? `<ul class="issues">${issues}</ul>` : ""}
+      <details style="margin-top:8px">
+        <summary>execution log (${(t.execution_log || []).length} entries)</summary>
+        <table style="margin-top:8px"><tbody>${(t.execution_log || []).map(e => `
+          <tr><td class="mono muted">${esc((e.timestamp || "").slice(11, 19))}</td>
+              <td>${esc(e.event_type)}</td>
+              <td class="muted">${esc(e.actor)}</td>
+              <td class="muted">${esc(e.description)}</td></tr>`).join("")}</tbody></table>
+      </details>
+    </div>`;
+  }).join("");
+
+  box.querySelectorAll("[data-a]").forEach(b => b.onclick = () => act(b.dataset.a, b.dataset.t, b.dataset.p));
+}
+
+async function act(action, taskId, parameter) {
+  const post = (p, body) => call(p, { method: "POST", body: JSON.stringify(body || {}) });
+  switch (action) {
+    case "start": return guard(() => post(`/tasks/${taskId}/start?actor=web`), "Task started");
+    case "review": return guard(() => post(`/tasks/${taskId}/mark-under-review`), "Submitted for review");
+    case "approve": return guard(() => post(`/tasks/${taskId}/approve`, { approver_name: "Web reviewer" }), "Task approved");
+    case "complete": return guard(() => post(`/tasks/${taskId}/complete`), "Task completed");
+    case "reject": return guard(() => post(`/tasks/${taskId}/reject`, { reason: "Rejected from the web UI" }), "Task rejected → ready");
+    case "rework": return guard(() => post(`/tasks/${taskId}/rework`, { reason: "Rework requested" }), "Task sent for rework");
+    case "waive": return guard(() => post(`/tasks/${taskId}/waiver`, {
+      parameter,
+      rationale: "Waived from the CIVIL-OS web UI after engineering review of the underlying assumption.",
+      waived_by: "Web reviewer",
+    }), "Waiver applied — re-run the gate check");
+  }
+}
+
+function renderAudit() {
+  const box = $("audit");
+  if (!state.audit.length) { box.innerHTML = '<div class="empty">No audit entries yet.</div>'; return; }
+  box.innerHTML = `<table><thead><tr><th>When</th><th>Entity</th><th>Action</th><th>Actor</th><th>Reason</th></tr></thead>
+    <tbody>${state.audit.slice().reverse().slice(0, 40).map(a => `
+      <tr><td class="mono muted">${esc((a.timestamp || "").slice(0, 19).replace("T", " "))}</td>
+          <td>${esc(a.entity_type)}<div class="muted mono">${esc((a.entity_id || "").slice(0, 8))}</div></td>
+          <td>${esc(a.action)}</td><td>${esc(a.actor)}</td>
+          <td class="muted">${esc(a.reason || a.after?.version ? a.reason || ("version " + (a.after?.version ?? "")) : "")}</td></tr>`).join("")}</tbody></table>`;
+}
+
+/* ------------------------------ data flow ------------------------------ */
+async function refresh() {
+  try {
+    const h = await call("/health");
+    $("status").textContent = `v${h.version} · ${h.projects} project(s)`;
+    state.projects = (await call("/projects")).projects;
+    if (!state.projectId && state.projects.length) state.projectId = state.projects[0].project_id;
+    if (state.projectId && !state.projects.some(p => p.project_id === state.projectId)) {
+      state.projectId = state.projects.length ? state.projects[0].project_id : null;
+    }
+    if (state.projectId) {
+      const [s, n, e, t, a] = await Promise.all([
+        call(`/projects/${state.projectId}/sites`),
+        call(`/projects/${state.projectId}/needs`),
+        call(`/projects/${state.projectId}/ecps`),
+        call(`/projects/${state.projectId}/tasks`),
+        call(`/audit?entity_id=${state.projectId}`),
+      ]);
+      state.sites = s.sites; state.needs = n.needs; state.ecps = e.ecps;
+      state.tasks = await Promise.all(t.tasks.map(async task => ({ ...task, gate: (await call(`/tasks/${task.uto_id}/gate`)) })));
+      state.audit = a.entries;
+    } else {
+      state.sites = state.needs = state.ecps = state.tasks = state.audit = [];
+    }
+    renderProjects(); renderContext(); renderTasks(); renderAudit();
+  } catch (e) {
+    $("status").textContent = "offline";
+    toast(e.message, "err");
+  }
+}
+
+/* ------------------------------ actions ------------------------------- */
+$("refresh").onclick = refresh;
+$("ctx-project").onchange = (ev) => { state.projectId = ev.target.value; refresh(); };
+
+$("create-project").onclick = () => guard(async () => {
+  const budget = $("p-budget").value;
+  const r = await call("/projects", { method: "POST", body: JSON.stringify({
+    name: $("p-name").value.trim(),
+    project_type: $("p-type").value,
+    country: $("p-country").value.trim().toUpperCase(),
+    region: $("p-region").value.trim(),
+    municipality: $("p-muni").value.trim(),
+    latitude: parseFloat($("p-lat").value),
+    longitude: parseFloat($("p-lon").value),
+    budget_amount: budget === "" ? null : parseFloat(budget),
+    risk_tolerance: $("p-risk").value,
+    design_life_years: parseInt($("p-life").value, 10),
+  }) });
+  state.projectId = r.project_id;
+  $("p-name").value = "";
+}, "Project created");
+
+$("add-site").onclick = () => guard(() => call(`/projects/${state.projectId}/sites`, {
+  method: "POST",
+  body: JSON.stringify({
+    name: "Site " + new Date().toLocaleTimeString(),
+    data_gaps: ["Groundwater verification", "Flood inundation modelling"],
+    recommended_investigations: ["Geotechnical site investigation (SPT boreholes)"],
+  }),
+}), "Site registered");
+
+$("add-need").onclick = () => guard(() => call(`/projects/${state.projectId}/needs`, {
+  method: "POST",
+  body: JSON.stringify({
+    category: "safety",
+    problem_statement: "Protect residents from seasonal 100-year flooding",
+    affected_population_count: 10000,
+  }),
+}), "Need registered");
+
+$("assemble").onclick = () => guard(async () => {
+  const p = new URLSearchParams();
+  if (state.sites[0]) p.set("site_id", state.sites[0].site_id);
+  if (state.needs[0]) p.set("need_id", state.needs[0].need_id);
+  p.set("validity_days", "30");
+  return call(`/projects/${state.projectId}/ecps?${p}`, { method: "POST" });
+}, "ECP assembled");
+
+$("create-task").onclick = () => guard(() => call("/tasks", {
+  method: "POST",
+  body: JSON.stringify({
+    project_id: state.projectId,
+    ecp_id: $("task-ecp").value || null,
+    task_name: $("task-name").value.trim(),
+    discipline: $("task-disc").value.trim(),
+    safety_critical: $("task-safety").value === "true",
+    assumptions: $("task-assumption").value.trim()
+      ? [{ assumption_text: $("task-assumption").value.trim(), confidence_level: "E",
+           risk_if_false: "Design may be non-conservative" }]
+      : [],
+  }),
+}), "Task created");
+
+refresh();
+</script>
+</body>
+</html>

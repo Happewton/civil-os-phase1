@@ -1,17 +1,12 @@
 """TSD-001 §4.2.2 — NEED entity."""
 from __future__ import annotations
 
-
 from datetime import datetime
 from typing import Literal, Optional
 
-
 from pydantic import Field
 
-
 from .base import CivilOSModel, ConfidenceLevel, Severity, new_id, utcnow
-
-
 
 
 class AffectedPopulation(CivilOSModel):

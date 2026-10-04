@@ -1,17 +1,12 @@
 """TSD-001 §5.2 — ECP (Engineering Context Packet) entity."""
 from __future__ import annotations
 
-
 from datetime import datetime
-from typing import Any, Optional
-
+from typing import Optional
 
 from pydantic import Field
 
-
-from .base import CivilOSModel, ConfidenceLevel, ParameterEvidence, UncertaintyItem, new_id, utcnow
-
-
+from .base import CivilOSModel, UncertaintyItem, new_id, utcnow
 
 
 class ValidityPeriod(CivilOSModel):

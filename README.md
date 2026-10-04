@@ -1,40 +1,100 @@
-# CIVIL-OS — Phase 1 Working Prototype
- This project is indented to be the backbone for a system that helps civil engineers and construction firms use AI models for their projects. It's a new kind of Harness for the power of AI models. It is meant to connect to AI models in a strategic way that puts the Civil Engineer in full control. 
- 
-**Project Context Engine** — core schemas · ECP assembler · basic CPO
+# CIVIL-OS — Project Context Engine
 
+A traceable engineering context layer for civil projects: every design input
+carries provenance and a confidence level, and the §7.3 gate stops work from
+proceeding on unverified assumptions.
 
-Runnable reference implementation of TSD-001 v0.1 (2026-08-31) Phase 1 scope,
-with an automated pytest suite and an end-to-end demonstration.
-
+Phase 1 scope (TSD-001 §4–§8): core data model, the Engineering Context Packet
+(ECP) assembler, the Civil Project Orchestrator (CPO), the UTO lifecycle state
+machine, the confidence/evidence system, an in-process `mcp-project` server and
+an HTTP service with a web UI.
 
 ## Requirements
-- Python 3.9+ (3.10+ recommended), pydantic ≥ 2.5, pytest ≥ 7.4
 
+- Python 3.9+ (3.10+ recommended)
+- `pydantic >= 2.5`
 
 ## Quick start
+
 ```bash
-python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -e ".[dev]"
+python -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -e ".[dev,web]"
 
-
-pytest            # full test suite (~80 tests)
-python demo.py    # end-to-end demo: Al-Wadi flood-protection scenario
+pytest                             # 87 tests
+python demo.py                     # end-to-end Al-Wadi scenario
+uvicorn app.api:app --reload       # http://127.0.0.1:8000
 ```
 
+Open <http://127.0.0.1:8000> for the web UI. It creates a project, registers a
+site and need, assembles an ECP, creates tasks, runs them through the confidence
+gate and waiver flow, and shows the audit trail.
 
-## Demo scenario (TSD-001 §3.3)
-Flood protection for 10,000 people in Al-Wadi, Riyadh. The demo shows:
-1. Project / need / site / requirement registration through the `mcp-project` server.
-2. ECP assembly + the jurisdiction cascade (SA → SBC codes).
-3. The §7.3 confidence gate **blocking** a task on a level-E groundwater assumption.
-4. A documented waiver unblocking a non-safety-critical task (level-D sign-off remains).
-5. A **safety-critical** task that refuses waivers (hard block, no exceptions).
-6. A simulated site investigation upgrading evidence E → A, producing ECP v2.
-7. Full UTO lifecycle: ready → in_progress → under_review → approved → completed.
-8. The complete audit trail (execution log) and JSON persistence round-trip.
+Disable the demo seed with `CIVIL_OS_SEED=0`. Configure CORS with
+`CIVIL_OS_CORS_ORIGINS=https://example.com` (wildcards are ignored — §19.5
+requires a whitelist).
 
+## Library use
 
-## Traceability
-See `IMPLEMENTATION_NOTES.md` for the spec→code traceability matrix, design
-decisions, documented deviations, and the Phase 2 roadmap.
+```python
+from civil_os import CivilProjectOrchestrator
+
+cpo = CivilProjectOrchestrator()
+project = cpo.create_project(
+    name="Al-Wadi Flood Protection",
+    project_type="water",
+    country="SA", latitude=24.7136, longitude=46.6753,
+    region="Riyadh Province", municipality="Al-Wadi",
+    budget_amount=15_000_000, risk_tolerance="conservative",
+)
+ecp = cpo.assemble_ecp(project.project_id)
+task = cpo.create_task(project.project_id, ecp.ecp_id,
+                       "Hydraulic analysis", discipline="civil")
+gate = cpo.check_gate(task.uto_id)      # gate.can_proceed, gate.issues
+```
+
+## What the engine guarantees
+
+| Rule | Behaviour |
+|---|---|
+| §5.3 r.1 completeness | Assembly fails if a critical section is empty |
+| §5.3 r.2 freshness | Expired ECP validity is a blocking `ValidationError` |
+| §5.3 r.3 confidence | `confidence_summary` is tallied from real evidence records |
+| §5.3 r.4 versioning | Content-hash versioning; identical content ⇒ identical version |
+| §5.3 r.5 jurisdiction | Location ⇒ country ⇒ applicable codes; no silent defaults |
+| §7.3 gate | Level-E assumptions block; waivers are task-scoped |
+| §7.3 safety | Safety-critical tasks refuse waivers outright |
+
+A task also refuses to start while a `blocks`/`requires` dependency is
+unfinished, and honours `lag_days` on that dependency.
+
+## Project layout
+
+```
+civil_os/
+  schemas/     §4 data model, §5.2 ECP, §6 UTO, §7 confidence & evidence
+  engine/      ECP assembly, validation, versioning, gates, jurisdiction
+  cpo/         orchestrator, registry (+ audit trail), state machine
+  mcp/         in-process MCP server and the mcp-project tool set
+app/
+  api.py       §24 REST contract, §24.3 error envelope, §25.1 error taxonomy
+  static/      single-page web UI
+tests/         87 tests
+```
+
+## Documentation
+
+| File | Contents |
+|---|---|
+| `IMPLEMENTATION_NOTES.md` | Design decisions, deviations, traceability, limitations |
+| `ROADMAP-001-v0.2_Sprint_Plan.md` | Backlog of stories, with the ones already done marked |
+| `TSD-001_v0.2_Missing_Sections.md` | §19–§27: security, deployment, CI/CD, API contract, errors, observability |
+| `STATUS.md` | What is implemented today, and what is not |
+
+`TSD-001_v0.1_Technical_Specification.md` contains only §1–§3 and §17; sections
+§4–§16 were never filled in, so clause references in the traceability matrix
+point at text that does not exist in this repository.
+
+## License
+
+Internal — development.

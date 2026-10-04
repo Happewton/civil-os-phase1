@@ -8,16 +8,12 @@ attribute assignment.
 """
 from __future__ import annotations
 
-
 import uuid
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Literal, Optional
 
-
 from pydantic import BaseModel, ConfigDict, Field
-
-
 
 
 def utcnow() -> datetime:
@@ -70,6 +66,15 @@ class EvidenceStatus(str, Enum):
     must_be_verified = "must_be_verified"
     superseded = "superseded"
 
+    # Upper-case aliases. Python Enum member names are conventionally
+    # upper-case, and callers (API clients, UI) write ``EvidenceStatus.
+    # MUST_BE_VERIFIED``. Aliases point at the same members, so both spellings
+    # resolve to one canonical value and comparisons stay correct.
+    VERIFIED = "verified"
+    PROVISIONAL = "provisional"
+    MUST_BE_VERIFIED = "must_be_verified"
+    SUPERSEDED = "superseded"
+
 
 
 
@@ -90,6 +95,17 @@ class LifecyclePhase(str, Enum):
     operation = "operation"
     decommissioning = "decommissioning"
 
+    NEED_ASSESSMENT = "need_assessment"
+    FEASIBILITY = "feasibility"
+    CONCEPT_DESIGN = "concept_design"
+    PRELIMINARY_DESIGN = "preliminary_design"
+    DETAILED_DESIGN = "detailed_design"
+    PROCUREMENT = "procurement"
+    CONSTRUCTION = "construction"
+    COMMISSIONING = "commissioning"
+    OPERATION = "operation"
+    DECOMMISSIONING = "decommissioning"
+
 
 
 
@@ -99,6 +115,12 @@ class ProjectStatus(str, Enum):
     on_hold = "on_hold"
     completed = "completed"
     archived = "archived"
+
+    DRAFT = "draft"
+    ACTIVE = "active"
+    ON_HOLD = "on_hold"
+    COMPLETED = "completed"
+    ARCHIVED = "archived"
 
 
 
@@ -115,6 +137,17 @@ class ProjectType(str, Enum):
     mining = "mining"
     building = "building"
 
+    TRANSPORTATION = "transportation"
+    WATER = "water"
+    WATER_SUPPLY = "water_supply"
+    WASTEWATER = "wastewater"
+    STRUCTURAL = "structural"
+    ENVIRONMENTAL = "environmental"
+    ENERGY = "energy"
+    URBAN = "urban"
+    MINING = "mining"
+    BUILDING = "building"
+
 
 
 
@@ -124,6 +157,11 @@ class Priority(str, Enum):
     high = "high"
     critical = "critical"
 
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
 
 
 
@@ -132,6 +170,11 @@ class Severity(str, Enum):
     major = "major"
     minor = "minor"
     informational = "informational"
+
+    BLOCKING = "blocking"
+    MAJOR = "major"
+    MINOR = "minor"
+    INFORMATIONAL = "informational"
 
 
 
@@ -189,6 +232,23 @@ class ParameterEvidence(CivilOSModel):
     notes: Optional[str] = None
 
 
+
+
+class AuditEntry(CivilOSModel):
+    """TSD-001 §14 — immutable record of one auditable action.
+
+    Captures who did what to which entity, with optional before/after state so
+    a reviewer can reconstruct the change without replaying the whole registry.
+    """
+
+    timestamp: datetime = Field(default_factory=utcnow)
+    entity_type: str
+    entity_id: str
+    action: str
+    actor: str = "system"
+    before: Optional[dict] = None
+    after: Optional[dict] = None
+    reason: str = ""
 
 
 class UncertaintyItem(CivilOSModel):

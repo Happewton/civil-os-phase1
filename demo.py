@@ -1,11 +1,22 @@
 """CIVIL-OS Phase 1 demonstration — Al-Wadi flood protection scenario (TSD-001 §3.3)."""
 import json
+import sys
+
 from civil_os import CivilProjectOrchestrator
 from civil_os.schemas import (
     AffectedPopulation, AssumptionItem, CalculationRequirement, ConfidenceLevel,
     ECPRef, ExecutionLogEntry, Need, ParameterEvidence, Requirement, Site,
     TaskDependency, TaskInput, Waiver
 )
+
+# The demo prints ✓/✗/→ markers. Windows consoles default to cp1252 and would
+# raise UnicodeEncodeError on them, so switch to UTF-8 with a lossy fallback.
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        try:
+            _stream.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):  # pragma: no cover - non-reconfigurable stream
+            pass
 
 
 def print_section(title):
@@ -247,7 +258,51 @@ def demo():
     print(f"  • Groundwater level measured: 5.3 m (confirms assumption!)")
     print(f"  • Soil classification: medium dense sand/silty sand")
     print(f"\n✓ New evidence obtained (Level A — MEASURED ON THIS PROJECT)")
-    
+
+    # Record the measured evidence on the SITE so the ECP content genuinely
+    # changes: groundwater promoted E -> A, plus a real soil profile.
+    from civil_os.schemas import (Geology, Hydrology, ParameterEvidence,
+                                  SoilLayer, SoilProfile)
+    from datetime import datetime, timezone
+
+    site.hydrology = Hydrology(
+        groundwater_level=ParameterEvidence(
+            parameter="groundwater_level",
+            value=5.3,
+            unit="m",
+            source="BH-07 piezometer reading (Phase 1 investigation)",
+            confidence_level=ConfidenceLevel.A,
+            status="verified",
+            method="standpipe piezometer",
+            last_verified=datetime.now(timezone.utc),
+            verified_by="Site investigation team",
+        ),
+        catchment_area_km2=12.4,
+        return_period_years=100,
+        rainfall_data_source="GWD regional station 404201",
+    )
+    site.geology = Geology(
+        rock_types=["silty sand", "medium dense sand"],
+        seismic_zone="SBC 401 — Zone 2A",
+    )
+    site.soil_profiles = [
+        SoilProfile(
+            borehole_id="BH-07",
+            layers=[
+                SoilLayer(depth_from_m=0.0, depth_to_m=5.0,
+                          soil_type="silty sand", classification="SP-SM",
+                          confidence_level=ConfidenceLevel.A),
+                SoilLayer(depth_from_m=5.0, depth_to_m=20.0,
+                          soil_type="medium dense sand", classification="SP",
+                          confidence_level=ConfidenceLevel.A),
+            ],
+        )
+    ]
+    site.data_gaps = ["Flood inundation modeling for 100-year event"]
+    cpo.update_site(site, actor="Site investigation team",
+                    reason="Phase 1 geotechnical investigation complete")
+    print(f"  Site updated: groundwater E→A, 2 measured soil layers added")
+
     # Reassemble ECP with upgraded evidence
     ecp_v2 = cpo.assemble_ecp(
         project_id=project.project_id,
@@ -255,9 +310,12 @@ def demo():
         need_id=need_id,
         validity_days=30,
     )
-    print(f"\n✓ ECP v2 assembled (content different → version bumped)")
+    print(f"\n✓ ECP v2 assembled (content changed → version bumped)")
     print(f"  Version: {ecp_v2.version} (was {ecp.version})")
     print(f"  Content hash: {ecp_v2.content_hash[:16]}...")
+    print(f"  Confidence summary: A={ecp_v2.confidence_summary.level_a_count} "
+          f"E={ecp_v2.confidence_summary.level_e_count} "
+          f"average={ecp_v2.confidence_summary.average_confidence}")
     
     # =========================================================================
     # 11. TASK LIFECYCLE (§6.3 State Machine)

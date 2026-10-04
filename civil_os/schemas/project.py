@@ -1,18 +1,12 @@
 """TSD-001 §4.2.1 — PROJECT entity."""
 from __future__ import annotations
 
-
 from datetime import datetime
 from typing import Literal, Optional
 
-
 from pydantic import Field, field_validator, model_validator
 
-
-from .base import (CivilOSModel, LifecyclePhase, Priority, ProjectStatus,
-                   ProjectType, new_id, utcnow)
-
-
+from .base import CivilOSModel, LifecyclePhase, Priority, ProjectStatus, ProjectType, new_id, utcnow
 
 
 class CoordinateSystem(CivilOSModel):

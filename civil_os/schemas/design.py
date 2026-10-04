@@ -1,17 +1,12 @@
 """TSD-001 §4.2.5 DESIGN_MODEL and §4.2.6 CALCULATION entities."""
 from __future__ import annotations
 
-
 from datetime import datetime
 from typing import Any, Literal, Optional
 
-
 from pydantic import Field
 
-
 from .base import CivilOSModel, ConfidenceLevel, new_id, utcnow
-
-
 
 
 class ModelInput(CivilOSModel):

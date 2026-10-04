@@ -1,8 +1,15 @@
 """Tests for CIVIL-OS core schemas."""
 import pytest
+
 from civil_os.schemas import (
-    Project, ProjectType, ProjectStatus, Location, Site, Need, Requirement,
-    ConfidenceLevel, ParameterEvidence, EvidenceStatus, Hazard, UTO, TaskStatus
+    UTO,
+    ConfidenceLevel,
+    EvidenceStatus,
+    Hazard,
+    Location,
+    ParameterEvidence,
+    ProjectStatus,
+    TaskStatus,
 )
 
 
@@ -23,7 +30,7 @@ def test_location_validation():
         longitude=46.6753,
     )
     assert loc.country == "SA"
-    
+
     with pytest.raises(ValueError):
         Location(country="SA", latitude=91, longitude=0)  # Invalid latitude
 

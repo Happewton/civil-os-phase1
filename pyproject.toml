@@ -5,22 +5,55 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "civil-os"
-version = "0.1.0"
-description = "CIVIL-OS Phase 1: Project Context Engine (schemas, ECP assembler, basic CPO)"
+version = "0.2.0"
+description = "CIVIL-OS: Project Context Engine (schemas, ECP assembler, CPO) + HTTP service"
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = ["pydantic>=2.5"]
 
 
 [project.optional-dependencies]
-dev = ["pytest>=7.4"]
+dev = [
+    "pytest>=7.4",
+    "pytest-cov>=4.1",
+    "httpx>=0.27",
+    "ruff>=0.4",
+]
+web = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "pydantic>=2.5",
+]
 
 
 [tool.setuptools.packages.find]
-include = ["civil_os*"]
+include = ["civil_os*", "app*"]
+
+
+[tool.setuptools.package-data]
+app = ["static/*"]
 
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
 addopts = "-ra"
+
+
+[tool.ruff]
+line-length = 110
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+ignore = [
+    "E501",   # long lines are handled by the formatter
+    "B008",   # FastAPI Depends()/Query() in defaults is idiomatic
+    "UP045",  # the package supports Python 3.9, so Optional[X] stays
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["B011"]
+
+[tool.coverage.run]
+source = ["civil_os", "app"]

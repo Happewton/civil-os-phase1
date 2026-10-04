@@ -1,14 +1,11 @@
 """TSD-001 §8.2 — mcp-project server: project context tools & resources."""
 from __future__ import annotations
 
-
 from typing import TYPE_CHECKING, Optional
 
-
 from ..cpo import CivilProjectOrchestrator
-from ..schemas import Location, Need, Requirement, Site
+from ..schemas import Need, Requirement, Site
 from .server import MCPServer
-
 
 if TYPE_CHECKING:
     pass
@@ -39,7 +36,7 @@ def create_mcp_project_server(cpo: CivilProjectOrchestrator) -> MCPServer:
 
 
     # Tool handlers
-    def handle_create_project(name: str, project_type: str, country: str, 
+    def handle_create_project(name: str, project_type: str, country: str,
                              latitude: float, longitude: float, **kwargs) -> dict:
         project = cpo.create_project(
             name=name,
@@ -48,10 +45,10 @@ def create_mcp_project_server(cpo: CivilProjectOrchestrator) -> MCPServer:
                 "country": country,
                 "latitude": latitude,
                 "longitude": longitude,
-                **{k: v for k, v in kwargs.items() 
+                **{k: v for k, v in kwargs.items()
                    if k in ["region", "municipality", "elevation_m"]},
             },
-            **{k: v for k, v in kwargs.items() 
+            **{k: v for k, v in kwargs.items()
                if k in ["description", "design_life_years", "budget_amount",
                        "target_completion", "land_area_available_m2", "risk_tolerance"]},
         )
@@ -62,8 +59,8 @@ def create_mcp_project_server(cpo: CivilProjectOrchestrator) -> MCPServer:
         site = Site(
             project_id=project_id,
             boundary=boundary,
-            **{k: v for k, v in kwargs.items() 
-               if k in ["terrain", "geology", "soil_profiles", "hydrology", 
+            **{k: v for k, v in kwargs.items()
+               if k in ["terrain", "geology", "soil_profiles", "hydrology",
                        "climate", "hazards", "existing_assets", "constraints",
                        "data_gaps", "recommended_investigations"]},
         )
@@ -71,13 +68,13 @@ def create_mcp_project_server(cpo: CivilProjectOrchestrator) -> MCPServer:
         return {"site_id": site_id}
 
 
-    def handle_register_need(project_id: str, category: str, problem_statement: str, 
+    def handle_register_need(project_id: str, category: str, problem_statement: str,
                            **kwargs) -> dict:
         need = Need(
             project_id=project_id,
             category=category,
             problem_statement=problem_statement,
-            **{k: v for k, v in kwargs.items() 
+            **{k: v for k, v in kwargs.items()
                if k in ["affected_population", "service_gap", "current_demand",
                        "future_demand", "performance_targets", "social_objectives",
                        "economic_objectives", "environmental_objectives",
@@ -94,7 +91,7 @@ def create_mcp_project_server(cpo: CivilProjectOrchestrator) -> MCPServer:
             discipline=discipline,
             category=category,
             description=description,
-            **{k: v for k, v in kwargs.items() 
+            **{k: v for k, v in kwargs.items()
                if k in ["priority", "verification_method", "acceptance_criteria",
                        "allocated_to", "status", "traceability", "change_history",
                        "confidence_level"]},
@@ -117,8 +114,8 @@ def create_mcp_project_server(cpo: CivilProjectOrchestrator) -> MCPServer:
     def handle_create_task(project_id: str, ecp_id: str, task_name: str,
                          discipline: str, **kwargs) -> dict:
         task = cpo.create_task(project_id, ecp_id, task_name, discipline=discipline,
-                              **{k: v for k, v in kwargs.items() 
-                                 if k in ["description", "task_type", "phase", 
+                              **{k: v for k, v in kwargs.items()
+                                 if k in ["description", "task_type", "phase",
                                          "priority", "safety_critical", "dependencies",
                                          "inputs", "requirements_satisfied", "assumptions"]})
         return {"task_id": task.uto_id, "status": task.status}

@@ -1,17 +1,12 @@
 """TSD-001 §6 — UTO (Universal Task Object) entity and lifecycle state machine."""
 from __future__ import annotations
 
-
 from datetime import datetime
 from typing import Literal, Optional
 
-
 from pydantic import Field
 
-
 from .base import CivilOSModel, ConfidenceLevel, UncertaintyItem, Waiver, new_id, utcnow
-
-
 
 
 class TaskStatus(str):
@@ -21,6 +16,20 @@ class TaskStatus(str):
     UNDER_REVIEW = "under_review"
     APPROVED = "approved"
     COMPLETED = "completed"
+    #: Set when the confidence gate or an unmet dependency blocks progress.
+    #: Unblock conditions are recorded in the execution log (P1-S3-04).
+    BLOCKED = "blocked"
+
+
+#: Every valid lifecycle state, used for transition validation.
+ALL_TASK_STATES = (
+    TaskStatus.READY,
+    TaskStatus.IN_PROGRESS,
+    TaskStatus.UNDER_REVIEW,
+    TaskStatus.APPROVED,
+    TaskStatus.COMPLETED,
+    TaskStatus.BLOCKED,
+)
 
 
 
@@ -139,11 +148,13 @@ class UTO(CivilOSModel):
 
     uto_id: str = Field(default_factory=new_id)
     project_id: str
-    ecp_ref: ECPRef  # which ECP version this task consumes
+    #: ECP version this task consumes. Optional: a task may be created before an
+    #: ECP is bound, and ``check_gate`` reports that as a missing prerequisite.
+    ecp_ref: Optional[ECPRef] = None
     task_name: str = Field(..., min_length=1)
     description: str = ""
     discipline: str
-    task_type: Literal["design", "analysis", "investigation", "review", "coordination"]
+    task_type: Literal["design", "analysis", "investigation", "review", "coordination"] = "design"
     phase: str = ""
     priority: Literal["low", "medium", "high", "critical"] = "medium"
     safety_critical: bool = False  # Phase-1 extension

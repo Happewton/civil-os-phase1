@@ -1,12 +1,9 @@
 """TSD-001 §5.3 r.1 — Requirements matrix and completeness tracking."""
 from __future__ import annotations
 
-
 from typing import TYPE_CHECKING
 
-
-from ..schemas import ECP, Project, Requirement, UTO
-
+from ..schemas import UTO, Project, Requirement
 
 if TYPE_CHECKING:
     pass

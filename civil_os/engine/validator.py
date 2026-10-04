@@ -1,13 +1,10 @@
 """TSD-001 §5.3 r.1–r.3 — ECP validation (completeness, freshness, confidence)."""
 from __future__ import annotations
 
-
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
-
-from ..schemas import ConfidenceLevel, ECP
-
+from ..schemas import ECP, ConfidenceLevel
 
 if TYPE_CHECKING:
     pass
